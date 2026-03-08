@@ -1,0 +1,213 @@
+.carousel-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.carousel-editor__viewport {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  position: relative;
+  /* aspect-ratio and max-width set via inline style to maintain ratio within 70vh */
+}
+
+.carousel-editor__canvas {
+  height: 100%;
+  position: relative;
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.carousel-editor__slide-bg {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+
+.carousel-editor__slide-divider {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* ─── Image Slot ─────────────────────────────────────────── */
+
+.image-slot {
+  position: absolute;
+  cursor: pointer;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+  box-sizing: border-box;
+  /* Tiny gap between slots */
+  padding: 1px;
+}
+
+.image-slot__input {
+  display: none;
+}
+
+.image-slot--drag-over {
+  box-shadow: inset 0 0 0 3px var(--accent);
+}
+
+.image-slot__placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--slot-bg);
+  border: 2px dashed var(--slot-border);
+  border-radius: 6px;
+  color: var(--text-tertiary);
+  transition: all 0.2s ease;
+}
+
+.image-slot:hover .image-slot__placeholder {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+.image-slot__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.image-slot__sublabel {
+  font-size: 0.65rem;
+  opacity: 0.7;
+}
+
+.image-slot__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 4px;
+}
+
+.image-slot__error {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--slot-bg);
+  border: 2px dashed #ff4757;
+  border-radius: 6px;
+  color: #ff4757;
+}
+
+.image-slot__overlay {
+  position: absolute;
+  inset: 1px;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: 4px;
+}
+
+.image-slot:hover .image-slot__overlay {
+  opacity: 1;
+}
+
+.image-slot__action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.image-slot__action-btn:hover {
+  background: #fff;
+  transform: scale(1.1);
+}
+
+.image-slot__action-btn--danger:hover {
+  background: #ff4757;
+  color: #fff;
+}
+
+/* ─── Navigation ─────────────────────────────────────────── */
+
+.carousel-editor__nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.carousel-editor__nav-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.carousel-editor__nav-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.carousel-editor__nav-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.carousel-editor__dots {
+  display: flex;
+  gap: 8px;
+}
+
+.carousel-editor__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  background: var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.carousel-editor__dot--active {
+  background: var(--accent);
+  transform: scale(1.2);
+}
+
+.carousel-editor__hint {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin: 0;
+}

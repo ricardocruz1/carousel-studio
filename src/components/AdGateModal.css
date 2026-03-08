@@ -1,0 +1,241 @@
+/* ─── Overlay ──────────────────────────────────────────────── */
+
+.ad-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  padding: 20px;
+  animation: adGateFadeIn 0.2s ease;
+}
+
+@keyframes adGateFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ─── Card ────────────────────────────────────────────────── */
+
+.ad-gate__card {
+  position: relative;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  animation: adGateSlideUp 0.3s ease;
+}
+
+@keyframes adGateSlideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ad-gate__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.ad-gate__close:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+/* ─── Header ──────────────────────────────────────────────── */
+
+.ad-gate__header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ad-gate__icon {
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.ad-gate__title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.ad-gate__subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+/* ─── Ad Container ────────────────────────────────────────── */
+
+.ad-gate__ad-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.ad-gate__ad-placeholder {
+  width: 300px;
+  height: 250px;
+  background: var(--bg);
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+}
+
+.ad-gate__ad-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  background: var(--border);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.ad-gate__ad-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ad-gate__ad-size {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
+
+/* ─── Footer / Countdown ──────────────────────────────────── */
+
+.ad-gate__footer {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.ad-gate__countdown {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ad-gate__countdown-ring {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.ad-gate__countdown-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ad-gate__countdown-bg {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 3;
+}
+
+.ad-gate__countdown-progress {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 97.4;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.ad-gate__countdown-number {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.ad-gate__countdown-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* ─── Continue Button ─────────────────────────────────────── */
+
+.ad-gate__continue-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 24px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  animation: adGateBtnPop 0.3s ease;
+}
+
+@keyframes adGateBtnPop {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.ad-gate__continue-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+
+/* ─── Responsive ──────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .ad-gate__card {
+    padding: 24px 16px;
+  }
+
+  .ad-gate__ad-placeholder {
+    width: 100%;
+    max-width: 300px;
+    height: 200px;
+  }
+}

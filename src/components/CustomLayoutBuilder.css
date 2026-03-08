@@ -1,0 +1,518 @@
+/* ─── Builder Container ──────────────────────────────────────────────────── */
+
+.builder {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* ─── Toolbar ────────────────────────────────────────────────────────────── */
+
+.builder__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.builder__toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.builder__toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Slide count control */
+.builder__control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.builder__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.builder__stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.builder__stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: background 0.15s ease;
+  font-family: inherit;
+}
+
+.builder__stepper-btn:hover:not(:disabled) {
+  background: var(--bg);
+}
+
+.builder__stepper-btn:disabled {
+  color: var(--text-tertiary);
+  opacity: 0.4;
+  cursor: default;
+}
+
+.builder__stepper-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 32px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+/* Tool buttons */
+.builder__tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.builder__tool-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.builder__tool-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.builder__tool-btn--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.builder__tool-btn--active:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: #fff;
+}
+
+.builder__tool-btn--ghost {
+  background: none;
+  border-color: transparent;
+  color: var(--text-tertiary);
+}
+
+.builder__tool-btn--ghost:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* ─── Canvas Wrapper ─────────────────────────────────────────────────────── */
+
+.builder__canvas-wrapper {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.builder__canvas-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Slide labels */
+.builder__slide-labels {
+  position: relative;
+  height: 24px;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.builder__slide-label {
+  position: absolute;
+  top: 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ─── Canvas (Grid) ──────────────────────────────────────────────────────── */
+
+.builder__canvas {
+  position: relative;
+  flex-shrink: 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  /* backgroundSize is set inline from JS: cellSize x cellSize */
+  background-position: 0 0;
+  transition: border-color 0.2s ease;
+  user-select: none;
+  touch-action: none;
+}
+
+.builder__canvas--draw {
+  cursor: crosshair;
+  border-color: var(--accent);
+}
+
+.builder__canvas--interacting {
+  /* Prevent text selection during drag */
+  user-select: none;
+}
+
+/* Slide dividers */
+.builder__divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ─── Empty State ────────────────────────────────────────────────────────── */
+
+.builder__empty-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.builder__empty-hint span {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* ─── Hover Cell Indicator ───────────────────────────────────────────────── */
+
+.builder__hover-cell {
+  position: absolute;
+  background: var(--accent);
+  opacity: 0.12;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 1;
+  transition: left 0.05s, top 0.05s;
+}
+
+/* ─── Slots ──────────────────────────────────────────────────────────────── */
+
+.builder__slot {
+  position: absolute;
+  background: var(--slot-bg);
+  border: 2px solid var(--slot-color);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  transition: box-shadow 0.15s ease;
+  z-index: 1;
+}
+
+.builder__slot:hover:not(.builder__slot--selected) {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--slot-color) 30%, transparent);
+}
+
+.builder__slot--selected {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--slot-color) 40%, transparent);
+  z-index: 10;
+}
+
+.builder__slot--interacting {
+  cursor: grabbing;
+  opacity: 0.85;
+}
+
+.builder__slot-number {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--slot-color);
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* Slot size indicator */
+.builder__slot-size {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--slot-color);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Slot delete button */
+.builder__slot-delete {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--danger);
+  color: #fff;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0;
+  padding: 0;
+  z-index: 15;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.builder__slot-delete:hover {
+  transform: scale(1.15);
+  background: #e8384f;
+}
+
+/* ─── Resize Handles ─────────────────────────────────────────────────────── */
+
+.builder__handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--surface);
+  border: 2px solid var(--slot-color, var(--accent));
+  border-radius: 3px;
+  z-index: 12;
+}
+
+/* Corner handles */
+.builder__handle--nw {
+  top: -7px;
+  left: -7px;
+}
+
+.builder__handle--ne {
+  top: -7px;
+  right: -7px;
+}
+
+.builder__handle--sw {
+  bottom: -7px;
+  left: -7px;
+}
+
+.builder__handle--se {
+  bottom: -7px;
+  right: -7px;
+}
+
+/* Edge handles */
+.builder__handle--n {
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.builder__handle--s {
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.builder__handle--e {
+  right: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.builder__handle--w {
+  left: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* ─── Ghost Rectangle (Drawing Preview) ──────────────────────────────────── */
+
+.builder__ghost {
+  position: absolute;
+  background: var(--accent);
+  opacity: 0.18;
+  border: 2px dashed var(--accent);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.builder__ghost-size {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  opacity: 1;
+  pointer-events: none;
+}
+
+/* ─── Footer ─────────────────────────────────────────────────────────────── */
+
+.builder__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.builder__footer-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.builder__hint-text {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+.builder__count-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.builder__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Action buttons */
+.builder__action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  white-space: nowrap;
+}
+
+.builder__action-btn--cancel {
+  background: var(--bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.builder__action-btn--cancel:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.builder__action-btn--finish {
+  background: var(--accent);
+  color: #fff;
+}
+
+.builder__action-btn--finish:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+
+.builder__action-btn--finish:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .builder__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .builder__toolbar-left,
+  .builder__toolbar-right {
+    justify-content: center;
+  }
+
+  .builder__footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .builder__footer-actions {
+    justify-content: flex-end;
+  }
+
+  .builder__canvas-wrapper {
+    padding: 12px;
+  }
+}

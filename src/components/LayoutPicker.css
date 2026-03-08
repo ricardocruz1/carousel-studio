@@ -1,0 +1,193 @@
+.layout-picker {
+  padding: 0 0 16px;
+}
+
+.layout-picker__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px;
+}
+
+/* ─── Horizontal Scroll Container ────────────────────────── */
+
+.layout-picker__container {
+  position: relative;
+}
+
+.layout-picker__scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 4px 2px 8px;
+}
+
+.layout-picker__scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Page Arrows ────────────────────────────────────────── */
+
+.layout-picker__arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s ease;
+}
+
+.layout-picker__arrow:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.layout-picker__arrow--left {
+  left: -12px;
+}
+
+.layout-picker__arrow--right {
+  right: -12px;
+}
+
+/* ─── Layout Card ────────────────────────────────────────── */
+
+.layout-card {
+  flex: 0 0 172px;
+  scroll-snap-align: start;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  font-family: inherit;
+}
+
+.layout-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.layout-card--selected {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.layout-card__preview {
+  position: relative;
+  width: 100%;
+  background: var(--bg);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.layout-card__divider {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--border);
+  z-index: 2;
+  opacity: 0.6;
+  border: none;
+}
+
+.layout-card__slot {
+  position: absolute;
+  background: var(--slot-bg);
+  border: 1px solid var(--slot-border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 2px;
+  width: calc(var(--w) - 4px);
+  height: calc(var(--h) - 4px);
+}
+
+.layout-card__slot-number {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  opacity: 0.7;
+}
+
+.layout-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.layout-card__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.layout-card__meta {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+/* ─── Custom Card ────────────────────────────────────────── */
+
+.layout-card--custom {
+  border-style: dashed;
+  border-color: var(--text-tertiary);
+  background: transparent;
+}
+
+.layout-card--custom:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.layout-card__preview--custom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  background: var(--bg);
+}
+
+.layout-card--custom:hover .layout-card__preview--custom {
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* ─── Responsive ─────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .layout-card {
+    flex: 0 0 148px;
+    padding: 8px;
+  }
+
+  .layout-picker__arrow {
+    display: none;
+  }
+}
