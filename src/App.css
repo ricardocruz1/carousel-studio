@@ -546,6 +546,44 @@ body {
   color: var(--text-secondary);
 }
 
+/* ─── Footer ─────────────────────────────────────────────── */
+
+.app__footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px 0 8px;
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.app__footer-copy {
+  font-weight: 600;
+}
+
+.app__footer-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app__footer-links a {
+  color: var(--text-tertiary);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.app__footer-links a:hover {
+  color: var(--accent);
+}
+
+.app__footer-sep {
+  opacity: 0.4;
+}
+
 /* ─── Responsive ─────────────────────────────────────────── */
 
 @media (max-width: 600px) {

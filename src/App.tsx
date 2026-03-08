@@ -1,8 +1,10 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { LayoutPicker } from './components/LayoutPicker';
 import { CarouselEditor } from './components/CarouselEditor';
 import { CustomLayoutBuilder } from './components/CustomLayoutBuilder';
 import { AdGateModal } from './components/AdGateModal';
+import { PrivacyPolicy } from './components/PrivacyPolicy';
+import { TermsOfService } from './components/TermsOfService';
 import { useEditorState } from './hooks/useEditorState';
 import { useExportGate } from './hooks/useExportGate';
 import { getLayoutById } from './layouts';
@@ -12,6 +14,28 @@ import { ASPECT_RATIOS, ASPECT_RATIO_OPTIONS } from './types';
 import './App.css';
 
 const App: React.FC = () => {
+  // Simple hash-based routing for legal pages
+  const [page, setPage] = useState(window.location.hash);
+
+  useEffect(() => {
+    const onHashChange = () => setPage(window.location.hash);
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  const navigateTo = useCallback((hash: string) => {
+    window.location.hash = hash;
+  }, []);
+
+  const goHome = useCallback(() => {
+    window.location.hash = '';
+    setPage('');
+  }, []);
+
+  // Route to legal pages
+  if (page === '#/privacy') return <PrivacyPolicy onBack={goHome} />;
+  if (page === '#/terms') return <TermsOfService onBack={goHome} />;
+
   const {
     state,
     selectLayout,
@@ -378,6 +402,16 @@ const App: React.FC = () => {
           exportsPerAd={exportsPerAd}
         />
       )}
+
+      {/* ── Footer ─────────────────────────────────── */}
+      <footer className="app__footer">
+        <span className="app__footer-copy">Carousel Studio</span>
+        <nav className="app__footer-links">
+          <a href="#/privacy" onClick={() => navigateTo('#/privacy')}>Privacy Policy</a>
+          <span className="app__footer-sep">|</span>
+          <a href="#/terms" onClick={() => navigateTo('#/terms')}>Terms of Service</a>
+        </nav>
+      </footer>
     </div>
   );
 };
