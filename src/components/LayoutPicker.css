@@ -95,19 +95,6 @@
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
-.layout-card__preview-sizer {
-  position: relative;
-  width: 100%;
-}
-
-.layout-card__preview-center {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
 .layout-card__preview {
   position: relative;
   width: 100%;

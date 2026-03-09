@@ -128,10 +128,8 @@ interface LayoutCardProps {
 const LayoutCard: React.FC<LayoutCardProps> = ({ layout, aspectRatio, isSelected, onClick }) => {
   const slideMarkers = Array.from({ length: layout.slideCount }, (_, i) => i);
   const config = ASPECT_RATIOS[aspectRatio];
-  // Actual aspect ratio for this layout's panoramic preview
-  const previewPaddingTop = (config.height / (config.width * layout.slideCount)) * 100;
-  // Reference height: use 2-slide ratio (tallest) so all cards align
-  const maxPaddingTop = (config.height / (config.width * 2)) * 100;
+  // Use 2-slide height for all layouts so previews align
+  const previewPaddingTop = (config.height / (config.width * 2)) * 100;
 
   return (
     <button
@@ -139,34 +137,30 @@ const LayoutCard: React.FC<LayoutCardProps> = ({ layout, aspectRatio, isSelected
       onClick={onClick}
       aria-label={`Select ${layout.name} layout`}
     >
-      <div className="layout-card__preview-sizer" style={{ paddingTop: `${maxPaddingTop}%` }}>
-        <div className="layout-card__preview-center">
-          <div className="layout-card__preview" style={{ paddingTop: `${previewPaddingTop}%` }}>
-            {/* Slide dividers */}
-            {slideMarkers.slice(1).map((i) => (
-              <div
-                key={`divider-${i}`}
-                className="layout-card__divider"
-                style={{ left: `${(i / layout.slideCount) * 100}%` }}
-              />
-            ))}
-            {/* Slot previews */}
-            {layout.thumbnailSlots.map((slot, index) => (
-              <div
-                key={slot.id}
-                className="layout-card__slot"
-                style={{
-                  left: `calc(${slot.x}% + 2px)`,
-                  top: `calc(${slot.y}% + 2px)`,
-                  width: `calc(${slot.width}% - 4px)`,
-                  height: `calc(${slot.height}% - 4px)`,
-                }}
-              >
-                <span className="layout-card__slot-number">{index + 1}</span>
-              </div>
-            ))}
+      <div className="layout-card__preview" style={{ paddingTop: `${previewPaddingTop}%` }}>
+        {/* Slide dividers */}
+        {slideMarkers.slice(1).map((i) => (
+          <div
+            key={`divider-${i}`}
+            className="layout-card__divider"
+            style={{ left: `${(i / layout.slideCount) * 100}%` }}
+          />
+        ))}
+        {/* Slot previews */}
+        {layout.thumbnailSlots.map((slot, index) => (
+          <div
+            key={slot.id}
+            className="layout-card__slot"
+            style={{
+              left: `calc(${slot.x}% + 2px)`,
+              top: `calc(${slot.y}% + 2px)`,
+              width: `calc(${slot.width}% - 4px)`,
+              height: `calc(${slot.height}% - 4px)`,
+            }}
+          >
+            <span className="layout-card__slot-number">{index + 1}</span>
           </div>
-        </div>
+        ))}
       </div>
       <div className="layout-card__info">
         <span className="layout-card__name">{layout.name}</span>
