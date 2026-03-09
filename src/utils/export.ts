@@ -4,12 +4,18 @@ import type { CarouselLayout, PlacedImage, AspectRatio } from '../types';
 import { INSTAGRAM_WIDTH, ASPECT_RATIOS } from '../types';
 
 /**
+ * Maximum total canvas pixels (width * height) before we warn / refuse.
+ * 268 megapixels = 16384 * 16384, which is the common browser canvas limit.
+ */
+export const MAX_CANVAS_PIXELS = 268_435_456;
+
+/**
  * Load an image from a URL and return an HTMLImageElement.
  */
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // No crossOrigin needed — all images are loaded from same-origin blob: URLs
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = url;
@@ -87,11 +93,23 @@ export async function exportCarousel(
   onProgress?: (progress: number) => void,
   scale: number = 1
 ): Promise<void> {
+  // Clamp scale to valid range
+  scale = Math.min(3, Math.max(1, Math.round(scale)));
+
   const config = ASPECT_RATIOS[aspectRatio];
   const slideWidth = INSTAGRAM_WIDTH * scale;
   const slideHeight = config.height * scale;
   const totalWidth = slideWidth * layout.slideCount;
   const totalHeight = slideHeight;
+
+  // Safety check: refuse if the canvas would exceed browser limits
+  const totalPixels = totalWidth * totalHeight;
+  if (totalPixels > MAX_CANVAS_PIXELS) {
+    throw new Error(
+      `Canvas size (${totalWidth}x${totalHeight} = ${Math.round(totalPixels / 1_000_000)}MP) exceeds the safe limit. ` +
+      `Try reducing the quality setting or using fewer slides.`
+    );
+  }
 
   // Create the full panoramic canvas
   const fullCanvas = document.createElement('canvas');

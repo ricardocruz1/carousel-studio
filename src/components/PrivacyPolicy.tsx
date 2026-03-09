@@ -55,12 +55,19 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
               Google Ads Settings
             </a>.
           </p>
+          <p>
+            <strong>The AdSense script is only loaded after you accept cookies
+            via our consent banner.</strong> If you reject cookies, no
+            third-party advertising scripts are loaded and no ad-related cookies
+            are set.
+          </p>
 
           <h3>2.4 Cookies</h3>
           <p>
-            We do not set cookies ourselves. However, Google AdSense and other
-            third-party services may set cookies to serve and measure ads. You
-            can manage cookie preferences through your browser settings.
+            We do not set cookies ourselves. However, if you accept our cookie
+            consent banner, Google AdSense may set cookies to serve and measure
+            ads. You can manage cookie preferences through your browser settings
+            or by clearing your local storage to reset your consent choice.
           </p>
         </section>
 

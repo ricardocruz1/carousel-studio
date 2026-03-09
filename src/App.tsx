@@ -5,12 +5,14 @@ import { CustomLayoutBuilder } from './components/CustomLayoutBuilder';
 import { AdGateModal } from './components/AdGateModal';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { TermsOfService } from './components/TermsOfService';
+import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { useEditorState } from './hooks/useEditorState';
 import { useExportGate } from './hooks/useExportGate';
+import { useCookieConsent } from './hooks/useCookieConsent';
 import { getLayoutById } from './layouts';
-import { exportCarousel } from './utils/export';
+import { exportCarousel, MAX_CANVAS_PIXELS } from './utils/export';
 import type { CarouselLayout } from './types';
-import { ASPECT_RATIOS, ASPECT_RATIO_OPTIONS } from './types';
+import { ASPECT_RATIOS, ASPECT_RATIO_OPTIONS, INSTAGRAM_WIDTH } from './types';
 import './App.css';
 
 const App: React.FC = () => {
@@ -32,10 +34,7 @@ const App: React.FC = () => {
     setPage('');
   }, []);
 
-  // Route to legal pages
-  if (page === '#/privacy') return <PrivacyPolicy onBack={goHome} />;
-  if (page === '#/terms') return <TermsOfService onBack={goHome} />;
-
+  // All hooks called unconditionally (before any conditional returns)
   const {
     state,
     selectLayout,
@@ -48,6 +47,7 @@ const App: React.FC = () => {
   } = useEditorState();
 
   const { canExport, credits, consumeExport, grantAdCredits, freeExports, exportsPerAd } = useExportGate();
+  const { consent, accept: acceptCookies, reject: rejectCookies } = useCookieConsent();
   const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [isBuilding, setIsBuilding] = useState(false);
   const [customLayout, setCustomLayout] = useState<CarouselLayout | null>(null);
@@ -71,6 +71,15 @@ const App: React.FC = () => {
   const remainingExports = credits.totalExports < freeExports
     ? (freeExports - credits.totalExports) + credits.bonusCredits
     : credits.bonusCredits;
+
+  // Check if current scale + slide count would exceed canvas limits
+  const canvasWarning = selectedLayout
+    ? (() => {
+        const config = ASPECT_RATIOS[state.aspectRatio];
+        const totalPixels = (INSTAGRAM_WIDTH * exportScale) * (config.height * exportScale) * selectedLayout.slideCount;
+        return totalPixels > MAX_CANVAS_PIXELS;
+      })()
+    : false;
 
   /** Actually run the export (called after gate check passes) */
   const doExport = useCallback(async () => {
@@ -143,6 +152,15 @@ const App: React.FC = () => {
     setIsBuilding(true);
   };
 
+  const handleScaleChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = Math.min(3, Math.max(1, Math.round(Number(e.target.value))));
+    setExportScale(val);
+  }, []);
+
+  // ─── Route to legal pages ──────────────────────────────
+  if (page === '#/privacy') return <PrivacyPolicy onBack={goHome} />;
+  if (page === '#/terms') return <TermsOfService onBack={goHome} />;
+
   // ─── Builder View ───────────────────────────────────────
   if (isBuilding) {
     return (
@@ -202,7 +220,7 @@ const App: React.FC = () => {
       </header>
 
       <main className="app__main">
-        {/* ── Layout Picker (horizontal, top) ────────── */}
+        {/* -- Layout Picker (horizontal, top) -------- */}
         <section className="app__picker">
           <LayoutPicker
             selectedLayoutId={state.selectedLayoutId}
@@ -212,7 +230,7 @@ const App: React.FC = () => {
           />
         </section>
 
-        {/* ── Aspect Ratio Selector ──────────────────── */}
+        {/* -- Aspect Ratio Selector ------------------- */}
         <section className="app__aspect-ratio">
           <span className="app__aspect-label">Aspect Ratio</span>
           <div className="app__aspect-options">
@@ -240,7 +258,7 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* ── Action Bar ─────────────────────────────── */}
+        {/* -- Action Bar ------------------------------ */}
         {selectedLayout && (
           <section className="app__action-bar">
             <div className="app__action-bar-left">
@@ -282,7 +300,7 @@ const App: React.FC = () => {
                   id="export-scale"
                   className="app__scale-dropdown"
                   value={exportScale}
-                  onChange={(e) => setExportScale(Number(e.target.value))}
+                  onChange={handleScaleChange}
                 >
                   <option value={1}>1x (1080p)</option>
                   <option value={2}>2x (2160p)</option>
@@ -291,6 +309,11 @@ const App: React.FC = () => {
               </div>
 
               <div className="app__export-group">
+                {canvasWarning && (
+                  <span className="app__canvas-warning" title="This combination of slides and quality may be too large for some browsers. Consider lowering the quality.">
+                    Large canvas
+                  </span>
+                )}
                 <button
                   className="app__btn app__btn--primary"
                   onClick={handleExport}
@@ -320,7 +343,7 @@ const App: React.FC = () => {
           </section>
         )}
 
-        {/* ── Editor (full width, below) ─────────────── */}
+        {/* -- Editor (full width, below) -------------- */}
         <section className="app__editor">
           {selectedLayout ? (
             <CarouselEditor
@@ -345,7 +368,7 @@ const App: React.FC = () => {
         </section>
       </main>
 
-      {/* ── No Credits Prompt ─────────────────────── */}
+      {/* -- No Credits Prompt ----------------------- */}
       {showNoCredits && (
         <div className="no-credits" onClick={handleNoCreditsClose}>
           <div className="no-credits__card" onClick={(e) => e.stopPropagation()}>
@@ -394,7 +417,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* ── Ad Gate Modal ──────────────────────────── */}
+      {/* -- Ad Gate Modal --------------------------- */}
       {showAdGate && (
         <AdGateModal
           onComplete={handleAdGateComplete}
@@ -403,7 +426,12 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* ── Footer ─────────────────────────────────── */}
+      {/* -- Cookie Consent Banner ------------------- */}
+      {consent === 'pending' && (
+        <CookieConsentBanner onAccept={acceptCookies} onReject={rejectCookies} />
+      )}
+
+      {/* -- Footer ---------------------------------- */}
       <footer className="app__footer">
         <span className="app__footer-copy">Carousel Studio</span>
         <nav className="app__footer-links">

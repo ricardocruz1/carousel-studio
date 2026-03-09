@@ -156,8 +156,26 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
 
   const handleFile = useCallback(
     (file: File) => {
-      // Accept any file — the <input accept="image/*"> already filters in the picker,
-      // and drag-and-drop files may have empty or non-standard MIME types (e.g. HEIC on macOS).
+      // Validate file size (max 50 MB)
+      const MAX_FILE_SIZE = 50 * 1024 * 1024;
+      if (file.size > MAX_FILE_SIZE) {
+        alert('Image is too large. Maximum file size is 50 MB.');
+        return;
+      }
+
+      // Validate file type. Allow empty MIME (e.g. HEIC on macOS may report empty)
+      // but reject files that have a non-image MIME type.
+      if (file.type && !file.type.startsWith('image/')) {
+        alert('Please select an image file (JPEG, PNG, WebP, etc.).');
+        return;
+      }
+
+      // Reject SVG files — they can contain embedded scripts
+      if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
+        alert('SVG files are not supported. Please use JPEG, PNG, or WebP.');
+        return;
+      }
+
       onSetImage(slotId, file);
     },
     [slotId, onSetImage]

@@ -336,6 +336,15 @@ body {
   gap: 4px;
 }
 
+.app__canvas-warning {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #e67e22;
+  background: rgba(230, 126, 34, 0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
 /* ─── Scale / Quality Selector ──────────────────────────── */
 
 .app__scale-select {
@@ -584,6 +593,84 @@ body {
   opacity: 0.4;
 }
 
+/* ─── Cookie Consent Banner ──────────────────────────────── */
+
+.cookie-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.1);
+  padding: 16px 24px;
+  animation: cookieBannerSlideUp 0.3s ease;
+}
+
+@keyframes cookieBannerSlideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.cookie-banner__content {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.cookie-banner__text {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.cookie-banner__link {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.cookie-banner__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.cookie-banner__btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.cookie-banner__btn--accept {
+  background: var(--accent);
+  color: #fff;
+}
+
+.cookie-banner__btn--accept:hover {
+  background: var(--accent-hover);
+}
+
+.cookie-banner__btn--reject {
+  background: var(--bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.cookie-banner__btn--reject:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
 /* ─── Responsive ─────────────────────────────────────────── */
 
 @media (max-width: 600px) {
@@ -633,5 +720,11 @@ body {
 
   .no-credits__card {
     padding: 32px 20px 24px;
+  }
+
+  .cookie-banner__content {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
   }
 }

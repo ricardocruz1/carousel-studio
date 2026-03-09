@@ -29,10 +29,17 @@ export function useEditorState() {
       offsetY: 0,
       scale: 1,
     };
-    setState((prev) => ({
-      ...prev,
-      images: { ...prev.images, [slotId]: placedImage },
-    }));
+    setState((prev) => {
+      // Revoke the old blob URL if replacing an existing image
+      const existing = prev.images[slotId];
+      if (existing) {
+        URL.revokeObjectURL(existing.url);
+      }
+      return {
+        ...prev,
+        images: { ...prev.images, [slotId]: placedImage },
+      };
+    });
   }, []);
 
   const removeImage = useCallback((slotId: string) => {
