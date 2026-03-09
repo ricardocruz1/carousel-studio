@@ -7,7 +7,7 @@ import './CustomLayoutBuilder.css';
 
 const COLS_PER_SLIDE = 12;
 const MIN_SPAN = 1;
-const MAX_SLIDES = 10;
+const MAX_SLIDES = 20;
 const MIN_SLIDES = 1;
 const MAX_SLOTS = 20;
 const IS_MOBILE = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;

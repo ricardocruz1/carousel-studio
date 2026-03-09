@@ -81,7 +81,7 @@ const App: React.FC = () => {
     restoreState,
   } = useEditorState();
 
-  const { canExport, credits, consumeExport, grantAdCredits, freeExports, exportsPerAd } = useExportGate();
+  const { consumeExport } = useExportGate();
   const { consent, accept: acceptCookies, reject: rejectCookies } = useCookieConsent();
   const { isDark, toggle: toggleDarkMode } = useDarkMode();
   const { showToast } = useToast();
@@ -89,7 +89,6 @@ const App: React.FC = () => {
   const [isBuilding, setIsBuilding] = useState(false);
   const [customLayout, setCustomLayout] = useState<CarouselLayout | null>(null);
   const [showAdGate, setShowAdGate] = useState(false);
-  const [showNoCredits, setShowNoCredits] = useState(false);
   const [exportScale, setExportScale] = useState<number>(1);
 
   // Mobile detection for collapsible controls
@@ -121,11 +120,6 @@ const App: React.FC = () => {
   const allSlotsFilled = selectedLayout
     ? imageCount === selectedLayout.imageCount
     : false;
-
-  // Compute remaining exports for display
-  const remainingExports = credits.totalExports < freeExports
-    ? (freeExports - credits.totalExports) + credits.bonusCredits
-    : credits.bonusCredits;
 
   // Check if current scale + slide count would exceed canvas limits
   const canvasWarning = selectedLayout
@@ -334,36 +328,20 @@ const App: React.FC = () => {
     }
   }, [selectedLayout, allSlotsFilled, state.currentSlide, state.images, state.aspectRatio, state.background, state.textOverlays, state.shapeOverlays, exportScale, isMobile, showToast]);
 
-  /** User clicks "Export Carousel" — check gate first */
+  /** User clicks "Export Carousel" — show ad gate first */
   const handleExport = useCallback(() => {
     if (!selectedLayout || !allSlotsFilled) return;
-
-    if (canExport) {
-      doExport();
-    } else {
-      setShowNoCredits(true);
-    }
-  }, [selectedLayout, allSlotsFilled, canExport, doExport]);
-
-  /** User chose "Watch a Short Ad" from the no-credits prompt */
-  const handleWatchAd = useCallback(() => {
-    setShowNoCredits(false);
     setShowAdGate(true);
-  }, []);
+  }, [selectedLayout, allSlotsFilled]);
 
-  /** Ad gate countdown finished — grant credits, close modal, export */
+  /** Ad gate countdown finished — close modal and export */
   const handleAdGateComplete = useCallback(() => {
-    grantAdCredits();
     setShowAdGate(false);
     doExport();
-  }, [grantAdCredits, doExport]);
+  }, [doExport]);
 
   const handleAdGateClose = useCallback(() => {
     setShowAdGate(false);
-  }, []);
-
-  const handleNoCreditsClose = useCallback(() => {
-    setShowNoCredits(false);
   }, []);
 
   const handleCustomClick = () => {
@@ -602,15 +580,6 @@ const App: React.FC = () => {
               <circle cx="21" cy="7" r="1.5" fill="currentColor"/>
             </svg>
             <h1 className="app__title">Carousel Studio</h1>
-          </div>
-          <div className={`app__credits-badge ${remainingExports === 0 ? 'app__credits-badge--empty' : ''}`}>
-            <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-              <path d="M3 12.75V14.25C3 14.66 3.16 15.06 3.46 15.35C3.75 15.65 4.15 15.81 4.56 15.81H13.44C13.85 15.81 14.25 15.65 14.54 15.35C14.84 15.06 15 14.66 15 14.25V12.75M9 3V11.25M9 11.25L12 8.25M9 11.25L6 8.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span className="app__credits-badge-count">{remainingExports}</span>
-            <span className="app__credits-badge-label">
-              {remainingExports === 1 ? 'export' : 'exports'}
-            </span>
           </div>
           <button
             className="app__dark-toggle"
@@ -886,9 +855,9 @@ const App: React.FC = () => {
                       value={exportScale}
                       onChange={handleScaleChange}
                     >
-                      <option value={1}>1x</option>
-                      <option value={2}>2x</option>
-                      <option value={3}>3x</option>
+                      <option value={1}>Low</option>
+                      <option value={2}>Medium</option>
+                      <option value={3}>High</option>
                     </select>
                   </div>
 
@@ -993,61 +962,11 @@ const App: React.FC = () => {
         </section>
       </main>
 
-      {/* -- No Credits Prompt ----------------------- */}
-      {showNoCredits && (
-        <div className="no-credits" onClick={handleNoCreditsClose}>
-          <div className="no-credits__card" onClick={(e) => e.stopPropagation()}>
-            <button
-              className="no-credits__close"
-              onClick={handleNoCreditsClose}
-              aria-label="Close"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M6 6L14 14M14 6L6 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </button>
-
-            <div className="no-credits__icon">
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="2" />
-                <path d="M24 14V26" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                <circle cx="24" cy="32" r="1.5" fill="currentColor" />
-              </svg>
-            </div>
-
-            <h2 className="no-credits__title">You're out of exports</h2>
-            <p className="no-credits__text">
-              Watch a short ad to unlock <strong>{exportsPerAd} more exports</strong>. It only takes a few seconds and helps keep Carousel Studio free.
-            </p>
-
-            <div className="no-credits__actions">
-              <button
-                className="no-credits__btn-primary"
-                onClick={handleWatchAd}
-              >
-                <svg width="18" height="18" viewBox="0 0 40 40" fill="none">
-                  <rect x="4" y="8" width="32" height="24" rx="4" stroke="currentColor" strokeWidth="2" />
-                  <path d="M17 15L26 20L17 25V15Z" fill="currentColor" />
-                </svg>
-                Watch a Short Ad
-              </button>
-              <button
-                className="no-credits__btn-secondary"
-                onClick={handleNoCreditsClose}
-              >
-                Maybe Later
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* -- Ad Gate Modal --------------------------- */}
       {showAdGate && (
         <AdGateModal
           onComplete={handleAdGateComplete}
           onClose={handleAdGateClose}
-          exportsPerAd={exportsPerAd}
         />
       )}
 

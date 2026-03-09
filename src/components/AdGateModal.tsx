@@ -6,13 +6,11 @@ const COUNTDOWN_SECONDS = 5;
 interface AdGateModalProps {
   onComplete: () => void;
   onClose: () => void;
-  exportsPerAd: number;
 }
 
 export const AdGateModal: React.FC<AdGateModalProps> = ({
   onComplete,
   onClose,
-  exportsPerAd,
 }) => {
   const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
   const [canContinue, setCanContinue] = useState(false);
@@ -71,7 +69,7 @@ export const AdGateModal: React.FC<AdGateModalProps> = ({
           </div>
           <h2 className="ad-gate__title">Support Carousel Studio</h2>
           <p className="ad-gate__subtitle">
-            Please wait a moment to unlock {exportsPerAd} more exports. This keeps the app free for everyone.
+            Please wait a moment to unlock your export. This keeps the app free for everyone.
           </p>
         </div>
 
