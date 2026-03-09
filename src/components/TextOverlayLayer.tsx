@@ -26,8 +26,8 @@ export const TextOverlayLayer: React.FC<TextOverlayLayerProps> = ({
 
   // Deselect when clicking outside any overlay
   const layerRef = useRef<HTMLDivElement>(null);
-  const handleLayerClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === layerRef.current) {
+  const handleLayerClick = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if ((e as React.MouseEvent).target === layerRef.current || (e as React.TouchEvent).target === layerRef.current) {
       onSelectedIdChange(null);
       setEditingId(null);
     }
@@ -91,6 +91,9 @@ const TextOverlayItem: React.FC<TextOverlayItemProps> = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  // Track whether item was already selected when pointer went down (for tap-to-edit on mobile)
+  const wasSelectedOnDown = useRef(false);
+  const didDrag = useRef(false);
 
   // Position: left uses slideIndex-aware formula, top uses y%
   const leftPercent = ((overlay.slideIndex + overlay.x / 100) / layout.slideCount) * 100;
@@ -99,10 +102,15 @@ const TextOverlayItem: React.FC<TextOverlayItemProps> = ({
   // Font size in cqw units: fontSize / 1080 * 100
   const fontSizeCqw = (overlay.fontSize / 1080) * 100;
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (isEditing) return; // don't drag while editing text
     e.preventDefault();
     e.stopPropagation();
+
+    // Track whether this item was already selected (for tap-to-edit)
+    wasSelectedOnDown.current = isSelected;
+    didDrag.current = false;
+
     onSelect();
 
     const layerEl = wrapperRef.current?.parentElement;
@@ -119,10 +127,18 @@ const TextOverlayItem: React.FC<TextOverlayItemProps> = ({
     // Push a single snapshot BEFORE the drag starts
     onPushSnapshot();
 
-    const handleMouseMove = (ev: MouseEvent) => {
+    // Capture pointer for reliable tracking across boundaries
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+    const handlePointerMove = (ev: PointerEvent) => {
       if (!dragRef.current) return;
       const dx = ev.clientX - dragRef.current.startX;
       const dy = ev.clientY - dragRef.current.startY;
+
+      // Mark as drag if moved more than 3px (prevents accidental drag on tap)
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        didDrag.current = true;
+      }
 
       // Convert pixel delta to percentage of a single slide
       const slideWidthPx = rect.width / layout.slideCount;
@@ -135,15 +151,15 @@ const TextOverlayItem: React.FC<TextOverlayItemProps> = ({
       onUpdateNoHistory(overlay.id, { x: newX, y: newY });
     };
 
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       dragRef.current = null;
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-  }, [isEditing, overlay.id, overlay.x, overlay.y, layout.slideCount, onSelect, onUpdateNoHistory, onPushSnapshot]);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }, [isEditing, isSelected, overlay.id, overlay.x, overlay.y, layout.slideCount, onSelect, onUpdateNoHistory, onPushSnapshot]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -165,6 +181,28 @@ const TextOverlayItem: React.FC<TextOverlayItemProps> = ({
       }
     });
   }, [onStartEdit, onPushSnapshot]);
+
+  // Tap-to-edit on mobile: if item was already selected and user taps without dragging, enter edit mode
+  const handlePointerUpOnItem = useCallback((e: React.PointerEvent) => {
+    if (isEditing) return;
+    if (wasSelectedOnDown.current && !didDrag.current) {
+      e.stopPropagation();
+      onPushSnapshot();
+      onStartEdit();
+      requestAnimationFrame(() => {
+        const el = textRef.current;
+        if (el) {
+          el.focus();
+          const range = document.createRange();
+          const sel = window.getSelection();
+          range.selectNodeContents(el);
+          range.collapse(false);
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
+      });
+    }
+  }, [isEditing, onPushSnapshot, onStartEdit]);
 
   // Commit text on blur — this is the ONLY place we update the text in state
   const handleBlur = useCallback(() => {
@@ -188,7 +226,7 @@ const TextOverlayItem: React.FC<TextOverlayItemProps> = ({
     }
   }, [onStopEdit]);
 
-  const handleDeleteClick = useCallback((e: React.MouseEvent) => {
+  const handleDeleteClick = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
     e.preventDefault();
     onRemove(overlay.id);
@@ -213,7 +251,8 @@ const TextOverlayItem: React.FC<TextOverlayItemProps> = ({
         backgroundColor: overlay.backgroundColor || 'transparent',
         zIndex: overlay.zIndex,
       }}
-      onMouseDown={handleMouseDown}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUpOnItem}
       onDoubleClick={handleDoubleClick}
     >
       {/* Editable text — React only sets textContent when NOT editing */}
@@ -232,7 +271,7 @@ const TextOverlayItem: React.FC<TextOverlayItemProps> = ({
       {isSelected && !isEditing && (
         <button
           className="text-overlay-delete"
-          onMouseDown={handleDeleteClick}
+          onPointerDown={handleDeleteClick}
           title="Delete text"
           aria-label="Delete text overlay"
         >

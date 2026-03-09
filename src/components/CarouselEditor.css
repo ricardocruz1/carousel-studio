@@ -13,6 +13,8 @@
   background: var(--surface);
   border: 1px solid var(--border);
   position: relative;
+  /* Prevent iOS rubber-band scrolling during overlay drags */
+  overscroll-behavior: none;
   /* aspect-ratio and max-width set via inline style to maintain ratio within 70vh */
 }
 
@@ -76,10 +78,12 @@
   transition: all 0.2s ease;
 }
 
-.image-slot:hover .image-slot__placeholder {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-light);
+@media (hover: hover) {
+  .image-slot:hover .image-slot__placeholder {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
+  }
 }
 
 .image-slot__label {
@@ -127,8 +131,19 @@
   border-radius: 4px;
 }
 
-.image-slot:hover .image-slot__overlay {
-  opacity: 1;
+/* Show overlay on hover for devices that support it */
+@media (hover: hover) {
+  .image-slot:hover .image-slot__overlay {
+    opacity: 1;
+  }
+}
+
+/* On touch devices, always show overlay on filled image slots */
+@media (hover: none) {
+  .image-slot--filled .image-slot__overlay {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.3);
+  }
 }
 
 .image-slot__action-btn {
@@ -145,14 +160,16 @@
   transition: all 0.15s ease;
 }
 
-.image-slot__action-btn:hover {
-  background: #fff;
-  transform: scale(1.1);
-}
+@media (hover: hover) {
+  .image-slot__action-btn:hover {
+    background: #fff;
+    transform: scale(1.1);
+  }
 
-.image-slot__action-btn--danger:hover {
-  background: #ff4757;
-  color: #fff;
+  .image-slot__action-btn--danger:hover {
+    background: #ff4757;
+    color: #fff;
+  }
 }
 
 /* ─── Navigation ─────────────────────────────────────────── */
@@ -177,9 +194,11 @@
   transition: all 0.15s ease;
 }
 
-.carousel-editor__nav-btn:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
+@media (hover: hover) {
+  .carousel-editor__nav-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 
 .carousel-editor__nav-btn:disabled {
@@ -201,6 +220,18 @@
   cursor: pointer;
   transition: all 0.2s ease;
   padding: 0;
+  /* Expand touch target to 44px minimum while keeping visual size at 10px */
+  position: relative;
+}
+
+.carousel-editor__dot::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
 }
 
 .carousel-editor__dot--active {

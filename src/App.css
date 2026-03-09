@@ -157,8 +157,10 @@ body {
   font-family: inherit;
 }
 
-.app__aspect-btn:hover {
-  border-color: var(--accent);
+@media (hover: hover) {
+  .app__aspect-btn:hover {
+    border-color: var(--accent);
+  }
 }
 
 .app__aspect-btn--active {
@@ -271,10 +273,12 @@ body {
   color: #fff;
 }
 
-.app__btn--primary:hover:not(:disabled) {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--accent-glow);
+@media (hover: hover) {
+  .app__btn--primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--accent-glow);
+  }
 }
 
 .app__btn--primary:disabled {
@@ -288,9 +292,11 @@ body {
   border: 1px solid var(--border);
 }
 
-.app__btn--secondary:hover:not(:disabled) {
-  border-color: var(--text-secondary);
-  color: var(--text-primary);
+@media (hover: hover) {
+  .app__btn--secondary:hover:not(:disabled) {
+    border-color: var(--text-secondary);
+    color: var(--text-primary);
+  }
 }
 
 .app__btn--secondary:disabled {
@@ -310,8 +316,10 @@ body {
   border: 1px solid var(--accent);
 }
 
-.app__btn--outline:hover:not(:disabled) {
-  background: var(--accent-light);
+@media (hover: hover) {
+  .app__btn--outline:hover:not(:disabled) {
+    background: var(--accent-light);
+  }
 }
 
 .app__btn-loading {
@@ -353,9 +361,11 @@ body {
   font-family: inherit;
 }
 
-.app__btn--icon:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
+@media (hover: hover) {
+  .app__btn--icon:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 
 .app__btn--icon:disabled {
@@ -412,9 +422,11 @@ body {
   font-size: 0;
 }
 
-.bg-picker__swatch:hover {
-  border-color: var(--accent);
-  transform: scale(1.1);
+@media (hover: hover) {
+  .bg-picker__swatch:hover {
+    border-color: var(--accent);
+    transform: scale(1.1);
+  }
 }
 
 .bg-picker__swatch--active {
@@ -427,8 +439,10 @@ body {
   color: var(--text-tertiary);
 }
 
-.bg-picker__swatch--custom:hover {
-  color: var(--accent);
+@media (hover: hover) {
+  .bg-picker__swatch--custom:hover {
+    color: var(--accent);
+  }
 }
 
 .bg-picker__custom {
@@ -461,8 +475,10 @@ body {
   font-family: inherit;
 }
 
-.bg-picker__type-btn:hover {
-  border-color: var(--accent);
+@media (hover: hover) {
+  .bg-picker__type-btn:hover {
+    border-color: var(--accent);
+  }
 }
 
 .bg-picker__type-btn--active {
@@ -572,8 +588,10 @@ body {
   padding-right: 22px;
 }
 
-.app__scale-dropdown:hover {
-  border-color: var(--accent);
+@media (hover: hover) {
+  .app__scale-dropdown:hover {
+    border-color: var(--accent);
+  }
 }
 
 .app__scale-dropdown:focus {
@@ -661,9 +679,11 @@ body {
   transition: all 0.15s ease;
 }
 
-.no-credits__close:hover {
-  background: var(--border);
-  color: var(--text-primary);
+@media (hover: hover) {
+  .no-credits__close:hover {
+    background: var(--border);
+    color: var(--text-primary);
+  }
 }
 
 .no-credits__icon {
@@ -723,10 +743,12 @@ body {
   font-family: inherit;
 }
 
-.no-credits__btn-primary:hover {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px var(--accent-glow);
+@media (hover: hover) {
+  .no-credits__btn-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px var(--accent-glow);
+  }
 }
 
 .no-credits__btn-secondary {
@@ -743,8 +765,10 @@ body {
   font-family: inherit;
 }
 
-.no-credits__btn-secondary:hover {
-  color: var(--text-secondary);
+@media (hover: hover) {
+  .no-credits__btn-secondary:hover {
+    color: var(--text-secondary);
+  }
 }
 
 /* ─── Footer ─────────────────────────────────────────────── */
@@ -777,8 +801,10 @@ body {
   transition: color 0.15s ease;
 }
 
-.app__footer-links a:hover {
-  color: var(--accent);
+@media (hover: hover) {
+  .app__footer-links a:hover {
+    color: var(--accent);
+  }
 }
 
 .app__footer-sep {
@@ -848,8 +874,10 @@ body {
   color: #fff;
 }
 
-.cookie-banner__btn--accept:hover {
-  background: var(--accent-hover);
+@media (hover: hover) {
+  .cookie-banner__btn--accept:hover {
+    background: var(--accent-hover);
+  }
 }
 
 .cookie-banner__btn--reject {
@@ -858,9 +886,11 @@ body {
   border: 1px solid var(--border);
 }
 
-.cookie-banner__btn--reject:hover {
-  border-color: var(--text-secondary);
-  color: var(--text-primary);
+@media (hover: hover) {
+  .cookie-banner__btn--reject:hover {
+    border-color: var(--text-secondary);
+    color: var(--text-primary);
+  }
 }
 
 /* ─── Shape Dropdown ─────────────────────────────────────── */
@@ -904,9 +934,15 @@ body {
   white-space: nowrap;
 }
 
-.app__shape-dropdown-item:hover {
-  background: var(--accent-light);
-  color: var(--accent);
+@media (hover: hover) {
+  .app__shape-dropdown-item:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+  }
+
+  .app__shape-dropdown-item:hover svg {
+    color: var(--accent);
+  }
 }
 
 .app__shape-dropdown-item svg {

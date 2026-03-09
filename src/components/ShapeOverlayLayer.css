@@ -13,10 +13,14 @@
   pointer-events: auto;
   user-select: none;
   transition: box-shadow 0.15s ease;
+  /* Prevent browser touch gestures while dragging */
+  touch-action: none;
 }
 
-.shape-overlay-item:hover {
-  box-shadow: 0 0 0 1.5px rgba(108, 92, 231, 0.5);
+@media (hover: hover) {
+  .shape-overlay-item:hover {
+    box-shadow: 0 0 0 1.5px rgba(108, 92, 231, 0.5);
+  }
 }
 
 .shape-overlay-item--selected {
@@ -57,32 +61,44 @@
 
 .shape-resize-handle {
   position: absolute;
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   background: #fff;
   border: 1.5px solid var(--accent);
   border-radius: 2px;
   pointer-events: auto;
   z-index: 5;
+  /* Ensure minimum 44px touch target via padding trick */
+  /* The visible handle is 14px but the tappable area extends via ::before */
 }
 
-.shape-resize-handle--nw { top: -5px; left: -5px; cursor: nw-resize; }
-.shape-resize-handle--ne { top: -5px; right: -5px; cursor: ne-resize; }
-.shape-resize-handle--sw { bottom: -5px; left: -5px; cursor: sw-resize; }
-.shape-resize-handle--se { bottom: -5px; right: -5px; cursor: se-resize; }
-.shape-resize-handle--n  { top: -5px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
-.shape-resize-handle--s  { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
-.shape-resize-handle--w  { top: 50%; left: -5px; transform: translateY(-50%); cursor: w-resize; }
-.shape-resize-handle--e  { top: 50%; right: -5px; transform: translateY(-50%); cursor: e-resize; }
+.shape-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+}
+
+.shape-resize-handle--nw { top: -7px; left: -7px; cursor: nw-resize; }
+.shape-resize-handle--ne { top: -7px; right: -7px; cursor: ne-resize; }
+.shape-resize-handle--sw { bottom: -7px; left: -7px; cursor: sw-resize; }
+.shape-resize-handle--se { bottom: -7px; right: -7px; cursor: se-resize; }
+.shape-resize-handle--n  { top: -7px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+.shape-resize-handle--s  { bottom: -7px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+.shape-resize-handle--w  { top: 50%; left: -7px; transform: translateY(-50%); cursor: w-resize; }
+.shape-resize-handle--e  { top: 50%; right: -7px; transform: translateY(-50%); cursor: e-resize; }
 
 /* ─── Delete X Button ────────────────────────────────────── */
 
 .shape-overlay-delete {
   position: absolute;
-  top: -10px;
-  right: -10px;
-  width: 20px;
-  height: 20px;
+  top: -14px;
+  right: -14px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 1.5px solid var(--border);
   background: var(--surface);
@@ -96,13 +112,18 @@
   transition: all 0.15s ease;
   z-index: 5;
   pointer-events: auto;
+  /* Ensure minimum touch target */
+  min-width: 44px;
+  min-height: 44px;
 }
 
-.shape-overlay-delete:hover {
-  background: var(--danger, #ff4757);
-  color: #fff;
-  border-color: var(--danger, #ff4757);
-  transform: scale(1.15);
+@media (hover: hover) {
+  .shape-overlay-delete:hover {
+    background: var(--danger, #ff4757);
+    color: #fff;
+    border-color: var(--danger, #ff4757);
+    transform: scale(1.15);
+  }
 }
 
 /* ─── Shape Floating Toolbar ─────────────────────────────── */
@@ -147,9 +168,11 @@
   max-width: 110px;
 }
 
-.shape-toolbar__select:hover,
-.shape-toolbar__select:focus {
-  border-color: var(--accent);
+@media (hover: hover) {
+  .shape-toolbar__select:hover,
+  .shape-toolbar__select:focus {
+    border-color: var(--accent);
+  }
 }
 
 .shape-toolbar__btn {
@@ -170,9 +193,11 @@
   flex-shrink: 0;
 }
 
-.shape-toolbar__btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+@media (hover: hover) {
+  .shape-toolbar__btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 
 .shape-toolbar__btn--active {
@@ -181,10 +206,12 @@
   border-color: var(--accent);
 }
 
-.shape-toolbar__btn--danger:hover {
-  background: var(--danger);
-  color: #fff;
-  border-color: var(--danger);
+@media (hover: hover) {
+  .shape-toolbar__btn--danger:hover {
+    background: var(--danger);
+    color: #fff;
+    border-color: var(--danger);
+  }
 }
 
 .shape-toolbar__color-label {
@@ -214,8 +241,10 @@
   transition: border-color 0.15s ease;
 }
 
-.shape-toolbar__color-label:hover .shape-toolbar__color-swatch {
-  border-color: var(--accent);
+@media (hover: hover) {
+  .shape-toolbar__color-label:hover .shape-toolbar__color-swatch {
+    border-color: var(--accent);
+  }
 }
 
 .shape-toolbar__range {
@@ -261,6 +290,9 @@
   .shape-toolbar {
     gap: 2px;
     padding: 4px 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
   }
 
   .shape-toolbar__select {

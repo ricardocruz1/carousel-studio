@@ -58,9 +58,11 @@
   transition: all 0.15s ease;
 }
 
-.ad-gate__close:hover {
-  background: var(--border);
-  color: var(--text-primary);
+@media (hover: hover) {
+  .ad-gate__close:hover {
+    background: var(--border);
+    color: var(--text-primary);
+  }
 }
 
 /* ─── Header ──────────────────────────────────────────────── */
@@ -220,10 +222,12 @@
   to { opacity: 1; transform: scale(1); }
 }
 
-.ad-gate__continue-btn:hover {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px var(--accent-glow);
+@media (hover: hover) {
+  .ad-gate__continue-btn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px var(--accent-glow);
+  }
 }
 
 /* ─── Responsive ──────────────────────────────────────────── */

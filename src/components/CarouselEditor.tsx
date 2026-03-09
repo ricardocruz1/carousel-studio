@@ -93,6 +93,44 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
     setSelectedKind(null);
   }, [currentSlide]);
 
+  // ── Swipe navigation on mobile ──────────────────────────────────────────
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const swipeRef = useRef<{ startX: number; startY: number; started: boolean } | null>(null);
+
+  const handleSwipeStart = useCallback((e: React.PointerEvent) => {
+    // Only handle single-finger touch (or mouse) — ignore if it started on an overlay
+    if (e.pointerType === 'mouse') return;
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-overlay-id], [data-shape-id], .shape-resize-handle')) return;
+    swipeRef.current = { startX: e.clientX, startY: e.clientY, started: true };
+  }, []);
+
+  const handleSwipeEnd = useCallback((e: React.PointerEvent) => {
+    const swipe = swipeRef.current;
+    if (!swipe || !swipe.started) return;
+    swipeRef.current = null;
+
+    const deltaX = e.clientX - swipe.startX;
+    const deltaY = e.clientY - swipe.startY;
+    const absDx = Math.abs(deltaX);
+    const absDy = Math.abs(deltaY);
+
+    // Must be a clear horizontal swipe: > 50px horizontal, and more horizontal than vertical
+    if (absDx < 50 || absDy > absDx) return;
+
+    if (deltaX < 0 && currentSlide < layout.slideCount - 1) {
+      // Swipe left → next slide
+      onSetCurrentSlide(currentSlide + 1);
+    } else if (deltaX > 0 && currentSlide > 0) {
+      // Swipe right → previous slide
+      onSetCurrentSlide(currentSlide - 1);
+    }
+  }, [currentSlide, layout.slideCount, onSetCurrentSlide]);
+
+  const handleSwipeCancel = useCallback(() => {
+    swipeRef.current = null;
+  }, []);
+
   // Keep toolbar position in sync with selected overlay element
   useLayoutEffect(() => {
     if (!selectedOverlayId) {
@@ -113,9 +151,13 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
       const rect = el.getBoundingClientRect();
       const spaceAbove = rect.top;
       const below = spaceAbove < 60;
+      // Clamp left so toolbar stays within viewport (with 8px margin)
+      const vw = window.innerWidth;
+      const rawLeft = rect.left + rect.width / 2;
+      const clampedLeft = Math.max(8, Math.min(vw - 8, rawLeft));
       setToolbarPos({
         top: below ? rect.bottom + 8 : rect.top - 8,
-        left: rect.left + rect.width / 2,
+        left: clampedLeft,
         below,
       });
     };
@@ -134,10 +176,15 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
     <div className="carousel-editor">
       <div
         className="carousel-editor__viewport"
+        ref={viewportRef}
         style={{
           aspectRatio: config.cssRatio,
           maxWidth: `min(100%, calc(70vh * ${ratioFactor}))`,
+          touchAction: 'pan-y',
         }}
+        onPointerDown={handleSwipeStart}
+        onPointerUp={handleSwipeEnd}
+        onPointerCancel={handleSwipeCancel}
       >
         <div
           className="carousel-editor__canvas"
@@ -212,8 +259,9 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
             left: `${toolbarPos.left}px`,
             transform: toolbarPos.below ? 'translateX(-50%)' : 'translate(-50%, -100%)',
             zIndex: 10000,
+            maxWidth: 'calc(100vw - 16px)',
           }}
-          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <FloatingToolbar
             overlay={selectedTextOverlay}
@@ -236,8 +284,9 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
             left: `${toolbarPos.left}px`,
             transform: toolbarPos.below ? 'translateX(-50%)' : 'translate(-50%, -100%)',
             zIndex: 10000,
+            maxWidth: 'calc(100vw - 16px)',
           }}
-          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <ShapeToolbar
             shape={selectedShapeOverlay}

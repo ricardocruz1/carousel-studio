@@ -10,9 +10,11 @@ const MIN_SPAN = 1;
 const MAX_SLIDES = 10;
 const MIN_SLIDES = 1;
 const MAX_SLOTS = 20;
-const MIN_CELL_SIZE = 30;
+const MIN_CELL_SIZE = 20;
 const MAX_CELL_SIZE = 44;
-const PREFERRED_CANVAS_WIDTH = 620;
+const PREFERRED_CANVAS_WIDTH = typeof window !== 'undefined' && window.innerWidth < 600
+  ? Math.min(window.innerWidth - 56, 400)
+  : 620;
 
 const SLOT_COLORS = [
   '#6c5ce7', '#00cec9', '#fd79a8', '#fdcb6e', '#55efc4',

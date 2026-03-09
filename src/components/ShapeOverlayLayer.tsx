@@ -117,8 +117,8 @@ const ShapeOverlayItem: React.FC<ShapeOverlayItemProps> = ({
 
   // ─── Drag to move ────────────────────────────
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
       // Ignore if clicking on a resize handle
       if ((e.target as HTMLElement).classList.contains('shape-resize-handle')) return;
       e.preventDefault();
@@ -138,7 +138,10 @@ const ShapeOverlayItem: React.FC<ShapeOverlayItemProps> = ({
 
       onPushSnapshot();
 
-      const handleMouseMove = (ev: MouseEvent) => {
+      // Capture pointer for reliable tracking
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+      const handlePointerMove = (ev: PointerEvent) => {
         if (!dragRef.current) return;
         const dx = ev.clientX - dragRef.current.startX;
         const dy = ev.clientY - dragRef.current.startY;
@@ -154,22 +157,22 @@ const ShapeOverlayItem: React.FC<ShapeOverlayItemProps> = ({
         onUpdateNoHistory(shape.id, { x: newX, y: newY });
       };
 
-      const handleMouseUp = () => {
+      const handlePointerUp = () => {
         dragRef.current = null;
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
       };
 
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
     },
     [shape.id, shape.x, shape.y, shape.width, shape.height, layout.slideCount, isConstrained, slideAR, onSelect, onUpdateNoHistory, onPushSnapshot]
   );
 
   // ─── Resize handles ─────────────────────────
 
-  const handleResizeMouseDown = useCallback(
-    (e: React.MouseEvent, dir: HandleDir) => {
+  const handleResizePointerDown = useCallback(
+    (e: React.PointerEvent, dir: HandleDir) => {
       e.preventDefault();
       e.stopPropagation();
       onSelect();
@@ -187,7 +190,10 @@ const ShapeOverlayItem: React.FC<ShapeOverlayItemProps> = ({
 
       onPushSnapshot();
 
-      const handleMouseMove = (ev: MouseEvent) => {
+      // Capture pointer for reliable tracking
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+      const handlePointerMove = (ev: PointerEvent) => {
         const slideWidthPx = rect.width / layout.slideCount;
         const slideHeightPx = rect.height;
 
@@ -251,19 +257,19 @@ const ShapeOverlayItem: React.FC<ShapeOverlayItemProps> = ({
         onUpdateNoHistory(shape.id, { x: newX, y: newY, width: newW, height: newH });
       };
 
-      const handleMouseUp = () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
+      const handlePointerUp = () => {
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
       };
 
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
     },
     [shape.id, shape.x, shape.y, shape.width, shape.height, layout.slideCount, isConstrained, slideAR, onSelect, onUpdateNoHistory, onPushSnapshot]
   );
 
   const handleDeleteClick = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.PointerEvent) => {
       e.stopPropagation();
       e.preventDefault();
       onRemove(shape.id);
@@ -343,7 +349,7 @@ const ShapeOverlayItem: React.FC<ShapeOverlayItemProps> = ({
         opacity: shape.opacity,
         zIndex: shape.zIndex,
       }}
-      onMouseDown={handleMouseDown}
+      onPointerDown={handlePointerDown}
     >
       {renderShape()}
 
@@ -353,7 +359,7 @@ const ShapeOverlayItem: React.FC<ShapeOverlayItemProps> = ({
           <div
             key={dir}
             className={`shape-resize-handle shape-resize-handle--${dir}`}
-            onMouseDown={(e) => handleResizeMouseDown(e, dir)}
+            onPointerDown={(e) => handleResizePointerDown(e, dir)}
           />
         ))}
 
@@ -361,7 +367,7 @@ const ShapeOverlayItem: React.FC<ShapeOverlayItemProps> = ({
       {isSelected && (
         <button
           className="shape-overlay-delete"
-          onMouseDown={handleDeleteClick}
+          onPointerDown={handleDeleteClick}
           title="Delete shape"
           aria-label="Delete shape overlay"
         >

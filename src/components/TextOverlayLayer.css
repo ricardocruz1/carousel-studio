@@ -23,10 +23,14 @@
   transition: box-shadow 0.15s ease;
   /* text-shadow for readability on any background */
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  /* Prevent browser touch gestures while dragging */
+  touch-action: none;
 }
 
-.text-overlay-item:hover {
-  box-shadow: 0 0 0 1.5px rgba(108, 92, 231, 0.5);
+@media (hover: hover) {
+  .text-overlay-item:hover {
+    box-shadow: 0 0 0 1.5px rgba(108, 92, 231, 0.5);
+  }
 }
 
 .text-overlay-item--selected {
@@ -48,10 +52,10 @@
 
 .text-overlay-delete {
   position: absolute;
-  top: -10px;
-  right: -10px;
-  width: 20px;
-  height: 20px;
+  top: -14px;
+  right: -14px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 1.5px solid var(--border);
   background: var(--surface);
@@ -65,13 +69,18 @@
   transition: all 0.15s ease;
   z-index: 5;
   pointer-events: auto;
+  /* Ensure minimum touch target */
+  min-width: 44px;
+  min-height: 44px;
 }
 
-.text-overlay-delete:hover {
-  background: var(--danger, #ff4757);
-  color: #fff;
-  border-color: var(--danger, #ff4757);
-  transform: scale(1.15);
+@media (hover: hover) {
+  .text-overlay-delete:hover {
+    background: var(--danger, #ff4757);
+    color: #fff;
+    border-color: var(--danger, #ff4757);
+    transform: scale(1.15);
+  }
 }
 
 /* ─── Floating Toolbar ────────────────────────────────────── */
@@ -120,9 +129,11 @@
   max-width: 64px;
 }
 
-.text-toolbar__select:hover,
-.text-toolbar__select:focus {
-  border-color: var(--accent);
+@media (hover: hover) {
+  .text-toolbar__select:hover,
+  .text-toolbar__select:focus {
+    border-color: var(--accent);
+  }
 }
 
 .text-toolbar__btn {
@@ -152,9 +163,11 @@
   text-decoration: underline;
 }
 
-.text-toolbar__btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+@media (hover: hover) {
+  .text-toolbar__btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 
 .text-toolbar__btn--active {
@@ -163,10 +176,12 @@
   border-color: var(--accent);
 }
 
-.text-toolbar__btn--active:hover {
-  background: var(--accent-hover, #5a4bd1);
-  border-color: var(--accent-hover, #5a4bd1);
-  color: #fff;
+@media (hover: hover) {
+  .text-toolbar__btn--active:hover {
+    background: var(--accent-hover, #5a4bd1);
+    border-color: var(--accent-hover, #5a4bd1);
+    color: #fff;
+  }
 }
 
 .text-toolbar__btn--tiny {
@@ -176,10 +191,12 @@
   font-size: 0.6rem;
 }
 
-.text-toolbar__btn--danger:hover {
-  background: var(--danger);
-  color: #fff;
-  border-color: var(--danger);
+@media (hover: hover) {
+  .text-toolbar__btn--danger:hover {
+    background: var(--danger);
+    color: #fff;
+    border-color: var(--danger);
+  }
 }
 
 .text-toolbar__color-label {
@@ -227,8 +244,10 @@
   background-position: 0 0, 0 4px, 4px -4px, -4px 0;
 }
 
-.text-toolbar__color-label:hover .text-toolbar__color-swatch {
-  border-color: var(--accent);
+@media (hover: hover) {
+  .text-toolbar__color-label:hover .text-toolbar__color-swatch {
+    border-color: var(--accent);
+  }
 }
 
 .text-toolbar__bg-group {
@@ -250,6 +269,9 @@
   .text-toolbar {
     gap: 2px;
     padding: 4px 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
   }
 
   .text-toolbar__select {

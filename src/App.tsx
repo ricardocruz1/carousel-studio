@@ -248,16 +248,16 @@ const App: React.FC = () => {
   const [showShapeDropdown, setShowShapeDropdown] = useState(false);
   const shapeDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close shape dropdown when clicking outside
+  // Close shape dropdown when clicking/tapping outside
   useEffect(() => {
     if (!showShapeDropdown) return;
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: PointerEvent) => {
       if (shapeDropdownRef.current && !shapeDropdownRef.current.contains(e.target as Node)) {
         setShowShapeDropdown(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
   }, [showShapeDropdown]);
 
   const handleAddShape = useCallback((shapeType: ShapeType) => {
