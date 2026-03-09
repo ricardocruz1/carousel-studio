@@ -10,7 +10,8 @@ const MIN_SPAN = 1;
 const MAX_SLIDES = 10;
 const MIN_SLIDES = 1;
 const MAX_SLOTS = 20;
-const MIN_CELL_SIZE = 20;
+const IS_MOBILE = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+const MIN_CELL_SIZE = IS_MOBILE ? 14 : 20;
 const MAX_CELL_SIZE = 44;
 const PREFERRED_CANVAS_WIDTH = typeof window !== 'undefined' && window.innerWidth < 600
   ? Math.min(window.innerWidth - 56, 400)
@@ -144,6 +145,18 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
   const [nextId, setNextId] = useState(() =>
     initialLayout ? initialLayout.slots.length + 1 : 1
   );
+
+  // ─── Detect mobile (coarse pointer = touch device) ─────
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   // ─── Computed ───────────────────────────────────────────
   const totalCols = slideCount * COLS_PER_SLIDE;
@@ -574,8 +587,8 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
                 </svg>
                 <span>
                   {drawMode
-                    ? 'Click and drag to draw a photo slot'
-                    : 'Click "Add Photo Slot" to start'}
+                    ? (isMobile ? 'Tap and drag to draw a photo slot' : 'Click and drag to draw a photo slot')
+                    : (isMobile ? 'Tap "Add Photo Slot" to start' : 'Click "Add Photo Slot" to start')}
                 </span>
               </div>
             )}
@@ -703,7 +716,9 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
               {slideCount} slide{slideCount !== 1 ? 's' : ''}
               {selectedId &&
                 !drawMode &&
-                ' \u00B7 Press Del to remove, drag to move'}
+                (isMobile
+                  ? ' \u00B7 Tap \u00D7 to remove, drag to move'
+                  : ' \u00B7 Press Del to remove, drag to move')}
             </span>
           )}
         </div>

@@ -7,12 +7,15 @@ import { BackgroundPicker } from './components/BackgroundPicker';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { TermsOfService } from './components/TermsOfService';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
+import { ToastContainer } from './components/Toast';
 import { useEditorState } from './hooks/useEditorState';
 import { useExportGate } from './hooks/useExportGate';
 import { useCookieConsent } from './hooks/useCookieConsent';
+import { useToast } from './hooks/useToast';
 import { getLayoutById } from './layouts';
 import { exportCarousel, MAX_CANVAS_PIXELS } from './utils/export';
 import { saveProject, loadProject } from './utils/project';
+import { loadFontsForFamilies } from './utils/fontLoader';
 import type { CarouselLayout, TextOverlay, ShapeOverlay, ShapeType } from './types';
 import { ASPECT_RATIOS, ASPECT_RATIO_OPTIONS, INSTAGRAM_WIDTH, FONT_OPTIONS } from './types';
 import './App.css';
@@ -73,12 +76,26 @@ const App: React.FC = () => {
 
   const { canExport, credits, consumeExport, grantAdCredits, freeExports, exportsPerAd } = useExportGate();
   const { consent, accept: acceptCookies, reject: rejectCookies } = useCookieConsent();
+  const { showToast } = useToast();
   const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [isBuilding, setIsBuilding] = useState(false);
   const [customLayout, setCustomLayout] = useState<CarouselLayout | null>(null);
   const [showAdGate, setShowAdGate] = useState(false);
   const [showNoCredits, setShowNoCredits] = useState(false);
   const [exportScale, setExportScale] = useState<number>(1);
+
+  // Mobile detection for collapsible controls
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  );
+  const [controlsOpen, setControlsOpen] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   // Refs for hidden file inputs
   const batchInputRef = useRef<HTMLInputElement>(null);
@@ -152,12 +169,12 @@ const App: React.FC = () => {
       consumeExport();
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
+      showToast('Export failed. Please try again.');
     } finally {
       setExporting(false);
       setExportProgress(null);
     }
-  }, [selectedLayout, allSlotsFilled, state.images, state.aspectRatio, state.background, state.textOverlays, state.shapeOverlays, setExporting, consumeExport, exportScale]);
+  }, [selectedLayout, allSlotsFilled, state.images, state.aspectRatio, state.background, state.textOverlays, state.shapeOverlays, setExporting, consumeExport, exportScale, showToast]);
 
   /** User clicks "Export Carousel" — check gate first */
   const handleExport = useCallback(() => {
@@ -333,9 +350,9 @@ const App: React.FC = () => {
       await saveProject(state, customLayout);
     } catch (err) {
       console.error('Save failed:', err);
-      alert('Failed to save project.');
+      showToast('Failed to save project.');
     }
-  }, [state, customLayout]);
+  }, [state, customLayout, showToast]);
 
   const handleLoadClick = useCallback(() => {
     loadInputRef.current?.click();
@@ -363,12 +380,18 @@ const App: React.FC = () => {
           images: project.images,
           currentSlide: 0,
         });
+
+        // Lazy-load any Google Fonts used by text overlays in the project
+        if (project.textOverlays && project.textOverlays.length > 0) {
+          const families = project.textOverlays.map((o: TextOverlay) => o.fontFamily);
+          loadFontsForFamilies(families);
+        }
       } catch (err) {
         console.error('Load failed:', err);
-        alert('Failed to load project. The file may be corrupted or incompatible.');
+        showToast('Failed to load project. The file may be corrupted or incompatible.');
       }
     },
-    [restoreState]
+    [restoreState, showToast]
   );
 
   // ─── Route to legal pages ──────────────────────────────
@@ -434,278 +457,297 @@ const App: React.FC = () => {
       </header>
 
       <main className="app__main">
-        {/* -- Layout Picker (horizontal, top) -------- */}
-        <section className="app__picker">
-          <LayoutPicker
-            selectedLayoutId={state.selectedLayoutId}
-            aspectRatio={state.aspectRatio}
-            onSelectLayout={selectLayout}
-            onCustomClick={handleCustomClick}
-          />
-        </section>
+        {/* -- Mobile Controls Toggle -------- */}
+        {isMobile && selectedLayout && (
+          <button
+            className={`app__controls-toggle ${controlsOpen ? 'app__controls-toggle--open' : ''}`}
+            onClick={() => setControlsOpen((v) => !v)}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M2.5 4.5H13.5M2.5 8H13.5M2.5 11.5H13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            {controlsOpen ? 'Hide Controls' : 'Controls'}
+            <svg className="app__controls-toggle-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        )}
 
-        {/* -- Aspect Ratio Selector ------------------- */}
-        <section className="app__aspect-ratio">
-          <span className="app__aspect-label">Aspect Ratio</span>
-          <div className="app__aspect-options">
-            {ASPECT_RATIO_OPTIONS.map((ratio) => {
-              const config = ASPECT_RATIOS[ratio];
-              return (
-                <button
-                  key={ratio}
-                  className={`app__aspect-btn ${state.aspectRatio === ratio ? 'app__aspect-btn--active' : ''}`}
-                  onClick={() => setAspectRatio(ratio)}
-                >
-                  <span
-                    className="app__aspect-icon"
-                    style={{
-                      aspectRatio: `${config.width} / ${config.height}`,
-                    }}
-                  />
-                  <span className="app__aspect-text">
-                    <span className="app__aspect-name">{config.label}</span>
-                    <span className="app__aspect-dims">{ratio}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* -- Background Picker ----------------------- */}
-        {selectedLayout && (
-          <section className="app__bg-section">
-            <BackgroundPicker
-              background={state.background}
-              onChange={setBackground}
+        {/* -- Collapsible Controls Panel -------- */}
+        <div className={`app__controls-panel ${isMobile && selectedLayout ? (controlsOpen ? 'app__controls-panel--open' : 'app__controls-panel--closed') : ''}`}>
+          {/* -- Layout Picker (horizontal, top) -------- */}
+          <section className="app__picker">
+            <LayoutPicker
+              selectedLayoutId={state.selectedLayoutId}
+              aspectRatio={state.aspectRatio}
+              onSelectLayout={selectLayout}
+              onCustomClick={handleCustomClick}
             />
           </section>
-        )}
 
-        {/* -- Action Bar ------------------------------ */}
-        {selectedLayout && (
-          <section className="app__action-bar">
-            {/* Row 1: Status + editing tools */}
-            <div className="app__action-row">
-              <div className="app__action-group">
-                {state.selectedLayoutId === 'custom' && (
+          {/* -- Aspect Ratio Selector ------------------- */}
+          <section className="app__aspect-ratio">
+            <span className="app__aspect-label">Aspect Ratio</span>
+            <div className="app__aspect-options">
+              {ASPECT_RATIO_OPTIONS.map((ratio) => {
+                const config = ASPECT_RATIOS[ratio];
+                return (
                   <button
-                    className="app__btn app__btn--outline"
-                    onClick={handleEditLayout}
+                    key={ratio}
+                    className={`app__aspect-btn ${state.aspectRatio === ratio ? 'app__aspect-btn--active' : ''}`}
+                    onClick={() => setAspectRatio(ratio)}
                   >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <path d="M11.5 2.5L13.5 4.5L5 13H3V11L11.5 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    Edit Layout
-                  </button>
-                )}
-
-                <span className="app__status-text">
-                  {imageCount} / {selectedLayout.imageCount} images
-                </span>
-
-                {!allSlotsFilled && imageCount > 0 && (
-                  <span className="app__hint">
-                    &mdash; {selectedLayout.imageCount - imageCount} more
-                  </span>
-                )}
-              </div>
-
-              <div className="app__action-group">
-                {/* Undo / Redo */}
-                <button
-                  className="app__btn app__btn--icon"
-                  onClick={undo}
-                  disabled={!canUndo}
-                  title="Undo (Ctrl+Z)"
-                  aria-label="Undo"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 6H10C12.2091 6 14 7.79086 14 10C14 12.2091 12.2091 14 10 14H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M6 3L3 6L6 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                <button
-                  className="app__btn app__btn--icon"
-                  onClick={redo}
-                  disabled={!canRedo}
-                  title="Redo (Ctrl+Shift+Z)"
-                  aria-label="Redo"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M13 6H6C3.79086 6 2 7.79086 2 10C2 12.2091 3.79086 14 6 14H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M10 3L13 6L10 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-
-                <div className="app__separator" />
-
-                {/* Add Text */}
-                <button
-                  className="app__btn app__btn--icon"
-                  onClick={handleAddText}
-                  title="Add text overlay"
-                  aria-label="Add text"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 4V3H13V4M8 3V13M6 13H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-
-                {/* Add Shape (dropdown) */}
-                <div ref={shapeDropdownRef} className="app__shape-dropdown-wrapper" style={{ position: 'relative' }}>
-                  <button
-                    className="app__btn app__btn--icon"
-                    onClick={() => setShowShapeDropdown((v) => !v)}
-                    title="Add shape"
-                    aria-label="Add shape"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-                    </svg>
-                  </button>
-                  {showShapeDropdown && (
-                    <div className="app__shape-dropdown">
-                      {([
-                        { type: 'rectangle' as ShapeType, label: 'Rectangle', icon: <rect x="2" y="4" width="12" height="8" rx="1" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
-                        { type: 'square' as ShapeType, label: 'Square', icon: <rect x="3" y="3" width="10" height="10" rx="1" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
-                        { type: 'circle' as ShapeType, label: 'Circle', icon: <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
-                        { type: 'ellipse' as ShapeType, label: 'Ellipse', icon: <ellipse cx="8" cy="8" rx="6" ry="4" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
-                        { type: 'triangle' as ShapeType, label: 'Triangle', icon: <polygon points="8,2 14,14 2,14" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
-                      ]).map(({ type, label, icon }) => (
-                        <button
-                          key={type}
-                          className="app__shape-dropdown-item"
-                          onClick={() => handleAddShape(type)}
-                        >
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">{icon}</svg>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Batch Upload */}
-                <button
-                  className="app__btn app__btn--icon"
-                  onClick={handleBatchUpload}
-                  title="Batch upload images"
-                  aria-label="Batch upload"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M8 10V2M8 2L5 5M8 2L11 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M2 10V13H14V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                <input
-                  ref={batchInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="app__hidden-input"
-                  onChange={handleBatchFiles}
-                />
-
-                <div className="app__separator" />
-
-                <button
-                  className="app__btn app__btn--icon"
-                  onClick={clearAll}
-                  disabled={imageCount === 0 && state.textOverlays.length === 0 && state.shapeOverlays.length === 0}
-                  title="Clear all"
-                  aria-label="Clear all"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 5H13M5 5V13H11V5M7 7V11M9 7V11M6 5V3H10V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Row 2: Project + Export */}
-            <div className="app__action-row">
-              <div className="app__action-group">
-                {/* Save / Load */}
-                <button
-                  className="app__btn app__btn--secondary app__btn--compact"
-                  onClick={handleSaveProject}
-                  title="Save project"
-                >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M12 14H4C3.44772 14 3 13.5523 3 13V3C3 2.44772 3.44772 2 4 2H9L13 6V13C13 13.5523 12.5523 14 12 14Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M9 2V6H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Save
-                </button>
-                <button
-                  className="app__btn app__btn--secondary app__btn--compact"
-                  onClick={handleLoadClick}
-                  title="Load project"
-                >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M2 13H14M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Load
-                </button>
-                <input
-                  ref={loadInputRef}
-                  type="file"
-                  accept=".carousel,.zip"
-                  className="app__hidden-input"
-                  onChange={handleLoadFile}
-                />
-              </div>
-
-              <div className="app__action-group">
-                <div className="app__scale-select">
-                  <label className="app__scale-label" htmlFor="export-scale">Quality</label>
-                  <select
-                    id="export-scale"
-                    className="app__scale-dropdown"
-                    value={exportScale}
-                    onChange={handleScaleChange}
-                  >
-                    <option value={1}>1x</option>
-                    <option value={2}>2x</option>
-                    <option value={3}>3x</option>
-                  </select>
-                </div>
-
-                {canvasWarning && (
-                  <span className="app__canvas-warning" title="This combination of slides and quality may be too large for some browsers. Consider lowering the quality.">
-                    Large canvas
-                  </span>
-                )}
-
-                <button
-                  className="app__btn app__btn--primary"
-                  onClick={handleExport}
-                  disabled={!allSlotsFilled || state.isExporting}
-                >
-                  {state.isExporting ? (
-                    <span className="app__btn-loading">
-                      <span
-                        className="app__btn-progress"
-                        style={{
-                          width: `${(exportProgress ?? 0) * 100}%`,
-                        }}
-                      />
-                      Exporting...
+                    <span
+                      className="app__aspect-icon"
+                      style={{
+                        aspectRatio: `${config.width} / ${config.height}`,
+                      }}
+                    />
+                    <span className="app__aspect-text">
+                      <span className="app__aspect-name">{config.label}</span>
+                      <span className="app__aspect-dims">{ratio}</span>
                     </span>
-                  ) : (
-                    <>
-                      <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-                        <path d="M3 12.75V14.25C3 14.6642 3.16437 15.0613 3.45701 15.354C3.74964 15.6466 4.14775 15.811 4.5625 15.811H13.4375C13.8522 15.811 14.2504 15.6466 14.543 15.354C14.8356 15.0613 15 14.6642 15 14.25V12.75M9 3V11.25M9 11.25L12 8.25M9 11.25L6 8.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      Export
-                    </>
-                  )}
-                </button>
-              </div>
+                  </button>
+                );
+              })}
             </div>
           </section>
-        )}
+
+          {/* -- Background Picker ----------------------- */}
+          {selectedLayout && (
+            <section className="app__bg-section">
+              <BackgroundPicker
+                background={state.background}
+                onChange={setBackground}
+              />
+            </section>
+          )}
+
+          {/* -- Action Bar ------------------------------ */}
+          {selectedLayout && (
+            <section className="app__action-bar">
+              {/* Row 1: Status + editing tools */}
+              <div className="app__action-row">
+                <div className="app__action-group">
+                  {state.selectedLayoutId === 'custom' && (
+                    <button
+                      className="app__btn app__btn--outline"
+                      onClick={handleEditLayout}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M11.5 2.5L13.5 4.5L5 13H3V11L11.5 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Edit Layout
+                    </button>
+                  )}
+
+                  <span className="app__status-text">
+                    {imageCount} / {selectedLayout.imageCount} images
+                  </span>
+
+                  {!allSlotsFilled && imageCount > 0 && (
+                    <span className="app__hint">
+                      &mdash; {selectedLayout.imageCount - imageCount} more
+                    </span>
+                  )}
+                </div>
+
+                <div className="app__action-group">
+                  {/* Undo / Redo */}
+                  <button
+                    className="app__btn app__btn--icon"
+                    onClick={undo}
+                    disabled={!canUndo}
+                    title="Undo (Ctrl+Z)"
+                    aria-label="Undo"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 6H10C12.2091 6 14 7.79086 14 10C14 12.2091 12.2091 14 10 14H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M6 3L3 6L6 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  <button
+                    className="app__btn app__btn--icon"
+                    onClick={redo}
+                    disabled={!canRedo}
+                    title="Redo (Ctrl+Shift+Z)"
+                    aria-label="Redo"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M13 6H6C3.79086 6 2 7.79086 2 10C2 12.2091 3.79086 14 6 14H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M10 3L13 6L10 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+
+                  <div className="app__separator" />
+
+                  {/* Add Text */}
+                  <button
+                    className="app__btn app__btn--icon"
+                    onClick={handleAddText}
+                    title="Add text overlay"
+                    aria-label="Add text"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 4V3H13V4M8 3V13M6 13H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+
+                  {/* Add Shape (dropdown) */}
+                  <div ref={shapeDropdownRef} className="app__shape-dropdown-wrapper" style={{ position: 'relative' }}>
+                    <button
+                      className="app__btn app__btn--icon"
+                      onClick={() => setShowShapeDropdown((v) => !v)}
+                      title="Add shape"
+                      aria-label="Add shape"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+                      </svg>
+                    </button>
+                    {showShapeDropdown && (
+                      <div className="app__shape-dropdown">
+                        {([
+                          { type: 'rectangle' as ShapeType, label: 'Rectangle', icon: <rect x="2" y="4" width="12" height="8" rx="1" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
+                          { type: 'square' as ShapeType, label: 'Square', icon: <rect x="3" y="3" width="10" height="10" rx="1" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
+                          { type: 'circle' as ShapeType, label: 'Circle', icon: <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
+                          { type: 'ellipse' as ShapeType, label: 'Ellipse', icon: <ellipse cx="8" cy="8" rx="6" ry="4" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
+                          { type: 'triangle' as ShapeType, label: 'Triangle', icon: <polygon points="8,2 14,14 2,14" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
+                        ]).map(({ type, label, icon }) => (
+                          <button
+                            key={type}
+                            className="app__shape-dropdown-item"
+                            onClick={() => handleAddShape(type)}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">{icon}</svg>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Batch Upload */}
+                  <button
+                    className="app__btn app__btn--icon"
+                    onClick={handleBatchUpload}
+                    title="Batch upload images"
+                    aria-label="Batch upload"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M8 10V2M8 2L5 5M8 2L11 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M2 10V13H14V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  <input
+                    ref={batchInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="app__hidden-input"
+                    onChange={handleBatchFiles}
+                  />
+
+                  <div className="app__separator" />
+
+                  <button
+                    className="app__btn app__btn--icon"
+                    onClick={clearAll}
+                    disabled={imageCount === 0 && state.textOverlays.length === 0 && state.shapeOverlays.length === 0}
+                    title="Clear all"
+                    aria-label="Clear all"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 5H13M5 5V13H11V5M7 7V11M9 7V11M6 5V3H10V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 2: Project + Export */}
+              <div className="app__action-row">
+                <div className="app__action-group">
+                  {/* Save / Load */}
+                  <button
+                    className="app__btn app__btn--secondary app__btn--compact"
+                    onClick={handleSaveProject}
+                    title="Save project"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path d="M12 14H4C3.44772 14 3 13.5523 3 13V3C3 2.44772 3.44772 2 4 2H9L13 6V13C13 13.5523 12.5523 14 12 14Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M9 2V6H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Save
+                  </button>
+                  <button
+                    className="app__btn app__btn--secondary app__btn--compact"
+                    onClick={handleLoadClick}
+                    title="Load project"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path d="M2 13H14M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Load
+                  </button>
+                  <input
+                    ref={loadInputRef}
+                    type="file"
+                    accept=".carousel,.zip"
+                    className="app__hidden-input"
+                    onChange={handleLoadFile}
+                  />
+                </div>
+
+                <div className="app__action-group">
+                  <div className="app__scale-select">
+                    <label className="app__scale-label" htmlFor="export-scale">Quality</label>
+                    <select
+                      id="export-scale"
+                      className="app__scale-dropdown"
+                      value={exportScale}
+                      onChange={handleScaleChange}
+                    >
+                      <option value={1}>1x</option>
+                      <option value={2}>2x</option>
+                      <option value={3}>3x</option>
+                    </select>
+                  </div>
+
+                  {canvasWarning && (
+                    <span className="app__canvas-warning" title="This combination of slides and quality may be too large for some browsers. Consider lowering the quality.">
+                      Large canvas
+                    </span>
+                  )}
+
+                  <button
+                    className="app__btn app__btn--primary"
+                    onClick={handleExport}
+                    disabled={!allSlotsFilled || state.isExporting}
+                  >
+                    {state.isExporting ? (
+                      <span className="app__btn-loading">
+                        <span
+                          className="app__btn-progress"
+                          style={{
+                            width: `${(exportProgress ?? 0) * 100}%`,
+                          }}
+                        />
+                        Exporting...
+                      </span>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+                          <path d="M3 12.75V14.25C3 14.6642 3.16437 15.0613 3.45701 15.354C3.74964 15.6466 4.14775 15.811 4.5625 15.811H13.4375C13.8522 15.811 14.2504 15.6466 14.543 15.354C14.8356 15.0613 15 14.6642 15 14.25V12.75M9 3V11.25M9 11.25L12 8.25M9 11.25L6 8.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        Export
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
+        </div>
 
         {/* -- Editor (full width, below) -------------- */}
         <section className="app__editor">
@@ -816,6 +858,9 @@ const App: React.FC = () => {
           <a href="#/terms" onClick={() => navigateTo('#/terms')}>Terms of Service</a>
         </nav>
       </footer>
+
+      {/* -- Toast Notifications ─────────────────────── */}
+      <ToastContainer />
     </div>
   );
 };

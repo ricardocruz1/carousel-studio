@@ -1,0 +1,109 @@
+/* ─── Toast Container ─────────────────────────────────────── */
+
+.toast-container {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  max-width: calc(100vw - 32px);
+  width: 380px;
+}
+
+/* ─── Individual Toast ───────────────────────────────────── */
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  animation: toastSlideIn 0.25s ease;
+  pointer-events: auto;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Toast Types ────────────────────────────────────────── */
+
+.toast--error {
+  border-color: rgba(255, 71, 87, 0.3);
+  background: linear-gradient(135deg, #fff5f5, var(--surface));
+}
+
+.toast--error .toast__icon {
+  color: var(--danger, #ff4757);
+}
+
+.toast--success {
+  border-color: rgba(46, 213, 115, 0.3);
+  background: linear-gradient(135deg, #f0fff4, var(--surface));
+}
+
+.toast--success .toast__icon {
+  color: #2ed573;
+}
+
+.toast--info {
+  border-color: rgba(108, 92, 231, 0.3);
+  background: linear-gradient(135deg, #f5f3ff, var(--surface));
+}
+
+.toast--info .toast__icon {
+  color: var(--accent, #6c5ce7);
+}
+
+/* ─── Toast Parts ────────────────────────────────────────── */
+
+.toast__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toast__message {
+  flex: 1;
+  font-weight: 500;
+}
+
+.toast__close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  padding: 0;
+}
+
+.toast__close:active {
+  opacity: 0.7;
+  transform: scale(0.9);
+}
+
+@media (hover: hover) {
+  .toast__close:hover {
+    background: var(--bg);
+    color: var(--text-primary);
+  }
+}

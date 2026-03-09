@@ -58,6 +58,11 @@
   transition: all 0.15s ease;
 }
 
+.ad-gate__close:active {
+  opacity: 0.7;
+  transform: scale(0.9);
+}
+
 @media (hover: hover) {
   .ad-gate__close:hover {
     background: var(--border);
@@ -215,6 +220,11 @@
   transition: all 0.2s ease;
   font-family: inherit;
   animation: adGateBtnPop 0.3s ease;
+}
+
+.ad-gate__continue-btn:active {
+  opacity: 0.8;
+  transform: scale(0.97);
 }
 
 @keyframes adGateBtnPop {

@@ -160,6 +160,11 @@
   transition: all 0.15s ease;
 }
 
+.image-slot__action-btn:active {
+  opacity: 0.7;
+  transform: scale(0.9);
+}
+
 @media (hover: hover) {
   .image-slot__action-btn:hover {
     background: #fff;
@@ -192,6 +197,11 @@
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+}
+
+.carousel-editor__nav-btn:active:not(:disabled) {
+  opacity: 0.7;
+  transform: scale(0.9);
 }
 
 @media (hover: hover) {
@@ -254,4 +264,27 @@
   padding: 6px 0;
   display: flex;
   justify-content: center;
+}
+
+/* ─── Touch Target Expansion (touch devices only) ────────── */
+
+@media (pointer: coarse) {
+  .image-slot__action-btn {
+    position: relative;
+  }
+
+  .image-slot__action-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+  }
+
+  .carousel-editor__nav-btn {
+    width: 44px;
+    height: 44px;
+  }
 }

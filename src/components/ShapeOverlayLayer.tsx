@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { ShapeOverlay, CarouselLayout, ShapeType, AspectRatio } from '../types';
 import { ASPECT_RATIOS } from '../types';
 import './ShapeOverlayLayer.css';
@@ -397,6 +397,191 @@ export const ShapeToolbar: React.FC<ShapeToolbarProps> = ({
   onBringForward,
   onSendBackward,
 }) => {
+  // Mobile detection for two-row layout
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  );
+  const [showMore, setShowMore] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  // Primary controls: fill type, fill color(s), border color, delete
+  const primaryControls = (
+    <>
+      {/* Fill type */}
+      <select
+        className="shape-toolbar__select"
+        value={shape.fillType}
+        onChange={(e) => onUpdate(shape.id, { fillType: e.target.value as ShapeOverlay['fillType'] })}
+        title="Fill"
+      >
+        <option value="transparent">No Fill</option>
+        <option value="solid">Solid</option>
+        <option value="gradient">Gradient</option>
+      </select>
+
+      {/* Solid fill color */}
+      {shape.fillType === 'solid' && (
+        <label className="shape-toolbar__color-label" title="Fill Color">
+          <input
+            type="color"
+            className="shape-toolbar__color-input"
+            value={shape.fillColor}
+            onChange={(e) => onUpdate(shape.id, { fillColor: e.target.value })}
+          />
+          <span className="shape-toolbar__color-swatch" style={{ background: shape.fillColor }} />
+        </label>
+      )}
+
+      {/* Gradient controls */}
+      {shape.fillType === 'gradient' && (
+        <div className="shape-toolbar__gradient-row">
+          <label className="shape-toolbar__color-label" title="Start Color">
+            <input
+              type="color"
+              className="shape-toolbar__color-input"
+              value={shape.gradientStart}
+              onChange={(e) => onUpdate(shape.id, { gradientStart: e.target.value })}
+            />
+            <span className="shape-toolbar__color-swatch" style={{ background: shape.gradientStart }} />
+          </label>
+          <label className="shape-toolbar__color-label" title="End Color">
+            <input
+              type="color"
+              className="shape-toolbar__color-input"
+              value={shape.gradientEnd}
+              onChange={(e) => onUpdate(shape.id, { gradientEnd: e.target.value })}
+            />
+            <span className="shape-toolbar__color-swatch" style={{ background: shape.gradientEnd }} />
+          </label>
+          <input
+            type="number"
+            className="shape-toolbar__angle-input"
+            value={shape.gradientAngle}
+            onChange={(e) => onUpdate(shape.id, { gradientAngle: ((Number(e.target.value) % 360) + 360) % 360 })}
+            title="Angle"
+            min={0}
+            max={360}
+          />
+        </div>
+      )}
+
+      <div className="shape-toolbar__divider" />
+
+      {/* Border color */}
+      <label className="shape-toolbar__color-label" title="Border Color">
+        <input
+          type="color"
+          className="shape-toolbar__color-input"
+          value={shape.borderColor}
+          onChange={(e) => onUpdate(shape.id, { borderColor: e.target.value })}
+        />
+        <span className="shape-toolbar__color-swatch" style={{ background: shape.borderColor, border: '2px solid var(--border)' }}>
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+            <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
+          </svg>
+        </span>
+      </label>
+
+      {/* Delete */}
+      <button
+        className="shape-toolbar__btn shape-toolbar__btn--danger"
+        onClick={() => onRemove(shape.id)}
+        title="Delete"
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </button>
+    </>
+  );
+
+  // Secondary controls: border width, opacity, z-order
+  const secondaryControls = (
+    <>
+      {/* Border width */}
+      <span className="shape-toolbar__label">W</span>
+      <input
+        type="range"
+        className="shape-toolbar__range"
+        min={0}
+        max={20}
+        step={1}
+        value={shape.borderWidth}
+        onChange={(e) => onUpdate(shape.id, { borderWidth: Number(e.target.value) })}
+        title={`Border: ${shape.borderWidth}px`}
+      />
+
+      <div className="shape-toolbar__divider" />
+
+      {/* Opacity */}
+      <span className="shape-toolbar__label">Op</span>
+      <input
+        type="range"
+        className="shape-toolbar__range"
+        min={0}
+        max={1}
+        step={0.05}
+        value={shape.opacity}
+        onChange={(e) => onUpdate(shape.id, { opacity: Number(e.target.value) })}
+        title={`Opacity: ${Math.round(shape.opacity * 100)}%`}
+      />
+
+      <div className="shape-toolbar__divider" />
+
+      {/* Z-order */}
+      <button
+        className="shape-toolbar__btn"
+        onClick={() => onBringForward(shape.id, 'shape')}
+        title="Bring Forward"
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M6 2L6 10M6 2L3 5M6 2L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <button
+        className="shape-toolbar__btn"
+        onClick={() => onSendBackward(shape.id, 'shape')}
+        title="Send Backward"
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M6 10L6 2M6 10L3 7M6 10L9 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <div className="shape-toolbar shape-toolbar--mobile" onClick={(e) => e.stopPropagation()}>
+        <div className="shape-toolbar__row">
+          {primaryControls}
+          <button
+            className={`shape-toolbar__btn shape-toolbar__btn--more ${showMore ? 'shape-toolbar__btn--active' : ''}`}
+            onClick={() => setShowMore((v) => !v)}
+            title="More options"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <circle cx="2" cy="6" r="1.2" fill="currentColor"/>
+              <circle cx="6" cy="6" r="1.2" fill="currentColor"/>
+              <circle cx="10" cy="6" r="1.2" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+        {showMore && (
+          <div className="shape-toolbar__row">
+            {secondaryControls}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="shape-toolbar" onClick={(e) => e.stopPropagation()}>
       {/* Fill type */}

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom';
 import type { CarouselLayout, PlacedImage, AspectRatio, TextOverlay, ShapeOverlay, BackgroundConfig } from '../types';
 import { ASPECT_RATIOS } from '../types';
+import { useToast } from '../hooks/useToast';
 import { TextOverlayLayer, FloatingToolbar } from './TextOverlayLayer';
 import { ShapeOverlayLayer, ShapeToolbar } from './ShapeOverlayLayer';
 import './CarouselEditor.css';
@@ -380,6 +381,9 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
 
 // ─── ImageSlot ───────────────────────────────────────────────────────────────
 
+/** One-time mobile check for static label text in ImageSlot */
+const IS_MOBILE_SLOT = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+
 interface ImageSlotProps {
   slotId: string;
   index: number;
@@ -406,6 +410,7 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const { showToast } = useToast();
 
   // Reset error state when a new image is placed
   useEffect(() => {
@@ -417,25 +422,25 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
       // Validate file size (max 50 MB)
       const MAX_FILE_SIZE = 50 * 1024 * 1024;
       if (file.size > MAX_FILE_SIZE) {
-        alert('Image is too large. Maximum file size is 50 MB.');
+        showToast('Image is too large. Maximum file size is 50 MB.');
         return;
       }
 
       // Validate file type
       if (file.type && !file.type.startsWith('image/')) {
-        alert('Please select an image file (JPEG, PNG, WebP, etc.).');
+        showToast('Please select an image file (JPEG, PNG, WebP, etc.).');
         return;
       }
 
       // Reject SVG files
       if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
-        alert('SVG files are not supported. Please use JPEG, PNG, or WebP.');
+        showToast('SVG files are not supported. Please use JPEG, PNG, or WebP.');
         return;
       }
 
       onSetImage(slotId, file);
     },
-    [slotId, onSetImage]
+    [slotId, onSetImage, showToast]
   );
 
   const handleClick = useCallback(() => {
@@ -565,7 +570,7 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
             <path d="M4 22L10 16L14 20L20 14L28 22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           <span className="image-slot__label">Photo {index + 1}</span>
-          <span className="image-slot__sublabel">Click or drag & drop</span>
+          <span className="image-slot__sublabel">{IS_MOBILE_SLOT ? 'Tap to add photo' : 'Click or drag & drop'}</span>
         </div>
       )}
     </div>

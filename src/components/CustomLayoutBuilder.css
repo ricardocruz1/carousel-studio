@@ -70,6 +70,11 @@
   font-family: inherit;
 }
 
+.builder__stepper-btn:active:not(:disabled) {
+  opacity: 0.7;
+  background: var(--bg);
+}
+
 @media (hover: hover) {
   .builder__stepper-btn:hover:not(:disabled) {
     background: var(--bg);
@@ -111,6 +116,11 @@
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
+}
+
+.builder__tool-btn:active:not(:disabled) {
+  opacity: 0.7;
+  transform: scale(0.97);
 }
 
 @media (hover: hover) {
@@ -343,6 +353,11 @@
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
+.builder__slot-delete:active {
+  opacity: 0.7;
+  transform: scale(0.9);
+}
+
 @media (hover: hover) {
   .builder__slot-delete:hover {
     transform: scale(1.15);
@@ -479,6 +494,11 @@
   white-space: nowrap;
 }
 
+.builder__action-btn:active:not(:disabled) {
+  opacity: 0.7;
+  transform: scale(0.97);
+}
+
 .builder__action-btn--cancel {
   background: var(--bg);
   color: var(--text-secondary);
@@ -534,5 +554,50 @@
 
   .builder__canvas-wrapper {
     padding: 12px;
+  }
+}
+
+/* ─── Touch Target Expansion (touch devices only) ────────── */
+
+@media (pointer: coarse) {
+  .builder__stepper-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .builder__stepper-value {
+    height: 44px;
+  }
+
+  .builder__slot-delete {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 28px;
+    height: 28px;
+  }
+
+  .builder__slot-delete::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+  }
+
+  .builder__handle {
+    position: absolute;
+  }
+
+  .builder__handle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
   }
 }

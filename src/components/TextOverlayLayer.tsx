@@ -1,6 +1,7 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { TextOverlay, CarouselLayout } from '../types';
 import { FONT_OPTIONS, FONT_SIZE_OPTIONS } from '../types';
+import { loadAllFonts } from '../utils/fontLoader';
 import './TextOverlayLayer.css';
 
 interface TextOverlayLayerProps {
@@ -296,6 +297,221 @@ export interface FloatingToolbarProps {
 
 export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ overlay, onUpdate, onRemove, onBringForward, onSendBackward }) => {
   const hasBgColor = overlay.backgroundColor !== '';
+
+  // Load all Google Fonts when the toolbar (with font picker) first renders
+  useEffect(() => {
+    loadAllFonts();
+  }, []);
+
+  // Mobile detection for two-row layout
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  );
+  const [showMore, setShowMore] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  // Primary controls (always visible)
+  const primaryControls = (
+    <>
+      {/* Font family */}
+      <select
+        className="text-toolbar__select"
+        value={overlay.fontFamily}
+        onChange={(e) => onUpdate(overlay.id, { fontFamily: e.target.value })}
+        title="Font"
+      >
+        {FONT_OPTIONS.map((f) => (
+          <option key={f.value} value={f.value}>{f.label}</option>
+        ))}
+      </select>
+
+      {/* Font size */}
+      <select
+        className="text-toolbar__select text-toolbar__select--narrow"
+        value={overlay.fontSize}
+        onChange={(e) => onUpdate(overlay.id, { fontSize: Number(e.target.value) })}
+        title="Size"
+      >
+        {FONT_SIZE_OPTIONS.map((s) => (
+          <option key={s} value={s}>{s}px</option>
+        ))}
+      </select>
+
+      <div className="text-toolbar__divider" />
+
+      {/* Bold toggle */}
+      <button
+        className={`text-toolbar__btn ${overlay.fontWeight === 700 ? 'text-toolbar__btn--active' : ''}`}
+        onClick={() => onUpdate(overlay.id, { fontWeight: overlay.fontWeight === 700 ? 400 : 700 })}
+        title="Bold"
+      >
+        B
+      </button>
+
+      {/* Italic toggle */}
+      <button
+        className={`text-toolbar__btn text-toolbar__btn--italic ${overlay.fontStyle === 'italic' ? 'text-toolbar__btn--active' : ''}`}
+        onClick={() => onUpdate(overlay.id, { fontStyle: overlay.fontStyle === 'italic' ? 'normal' : 'italic' })}
+        title="Italic"
+      >
+        I
+      </button>
+
+      {/* Underline toggle */}
+      <button
+        className={`text-toolbar__btn text-toolbar__btn--underline ${overlay.textDecoration === 'underline' ? 'text-toolbar__btn--active' : ''}`}
+        onClick={() => onUpdate(overlay.id, { textDecoration: overlay.textDecoration === 'underline' ? 'none' : 'underline' })}
+        title="Underline"
+      >
+        U
+      </button>
+
+      <div className="text-toolbar__divider" />
+
+      {/* Text Color */}
+      <label className="text-toolbar__color-label" title="Text Color">
+        <input
+          type="color"
+          className="text-toolbar__color-input"
+          value={overlay.color}
+          onChange={(e) => onUpdate(overlay.id, { color: e.target.value })}
+        />
+        <span className="text-toolbar__color-swatch" style={{ background: overlay.color }}>
+          <span className="text-toolbar__color-letter">A</span>
+        </span>
+      </label>
+
+      {/* Delete */}
+      <button
+        className="text-toolbar__btn text-toolbar__btn--danger"
+        onClick={() => onRemove(overlay.id)}
+        title="Delete"
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      </button>
+    </>
+  );
+
+  // Secondary controls (behind "More" on mobile, always visible on desktop)
+  const secondaryControls = (
+    <>
+      {/* Text align */}
+      <select
+        className="text-toolbar__select text-toolbar__select--narrow"
+        value={overlay.textAlign}
+        onChange={(e) => onUpdate(overlay.id, { textAlign: e.target.value as TextOverlay['textAlign'] })}
+        title="Align"
+      >
+        <option value="left">Left</option>
+        <option value="center">Center</option>
+        <option value="right">Right</option>
+      </select>
+
+      <div className="text-toolbar__divider" />
+
+      {/* Text Background Color */}
+      <div className="text-toolbar__bg-group">
+        <label className="text-toolbar__color-label" title="Text Background">
+          <input
+            type="color"
+            className="text-toolbar__color-input"
+            value={hasBgColor ? overlay.backgroundColor : '#000000'}
+            onChange={(e) => onUpdate(overlay.id, { backgroundColor: e.target.value })}
+          />
+          <span
+            className="text-toolbar__color-swatch text-toolbar__color-swatch--bg"
+            style={{ background: hasBgColor ? overlay.backgroundColor : 'transparent' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" fill={hasBgColor ? overlay.backgroundColor : 'none'} strokeDasharray={hasBgColor ? 'none' : '3 2'}/>
+            </svg>
+          </span>
+        </label>
+        {/* Clear bg button */}
+        {hasBgColor && (
+          <button
+            className="text-toolbar__btn text-toolbar__btn--tiny"
+            onClick={() => onUpdate(overlay.id, { backgroundColor: '' })}
+            title="Remove background"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M2 2L8 8M8 2L2 8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+          </button>
+        )}
+      </div>
+
+      <div className="text-toolbar__divider" />
+
+      {/* Opacity */}
+      <input
+        type="range"
+        className="text-toolbar__range"
+        min={0}
+        max={1}
+        step={0.05}
+        value={overlay.opacity}
+        onChange={(e) => onUpdate(overlay.id, { opacity: Number(e.target.value) })}
+        title={`Opacity: ${Math.round(overlay.opacity * 100)}%`}
+      />
+
+      <div className="text-toolbar__divider" />
+
+      {/* Z-order */}
+      <button
+        className="text-toolbar__btn"
+        onClick={() => onBringForward(overlay.id, 'text')}
+        title="Bring Forward"
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M6 2L6 10M6 2L3 5M6 2L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <button
+        className="text-toolbar__btn"
+        onClick={() => onSendBackward(overlay.id, 'text')}
+        title="Send Backward"
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M6 10L6 2M6 10L3 7M6 10L9 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <div className="text-toolbar text-toolbar--mobile" onClick={(e) => e.stopPropagation()}>
+        <div className="text-toolbar__row">
+          {primaryControls}
+          <button
+            className={`text-toolbar__btn text-toolbar__btn--more ${showMore ? 'text-toolbar__btn--active' : ''}`}
+            onClick={() => setShowMore((v) => !v)}
+            title="More options"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <circle cx="2" cy="6" r="1.2" fill="currentColor"/>
+              <circle cx="6" cy="6" r="1.2" fill="currentColor"/>
+              <circle cx="10" cy="6" r="1.2" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+        {showMore && (
+          <div className="text-toolbar__row">
+            {secondaryControls}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="text-toolbar" onClick={(e) => e.stopPropagation()}>

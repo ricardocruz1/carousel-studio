@@ -38,6 +38,7 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
   min-height: 100vh;
 }
 
@@ -157,6 +158,11 @@ body {
   font-family: inherit;
 }
 
+.app__aspect-btn:active {
+  opacity: 0.7;
+  transform: scale(0.97);
+}
+
 @media (hover: hover) {
   .app__aspect-btn:hover {
     border-color: var(--accent);
@@ -273,6 +279,11 @@ body {
   color: #fff;
 }
 
+.app__btn--primary:active:not(:disabled) {
+  opacity: 0.8;
+  transform: scale(0.97);
+}
+
 @media (hover: hover) {
   .app__btn--primary:hover:not(:disabled) {
     background: var(--accent-hover);
@@ -290,6 +301,11 @@ body {
   background: var(--bg);
   color: var(--text-secondary);
   border: 1px solid var(--border);
+}
+
+.app__btn--secondary:active:not(:disabled) {
+  opacity: 0.7;
+  transform: scale(0.97);
 }
 
 @media (hover: hover) {
@@ -314,6 +330,11 @@ body {
   background: var(--surface);
   color: var(--accent);
   border: 1px solid var(--accent);
+}
+
+.app__btn--outline:active:not(:disabled) {
+  opacity: 0.7;
+  transform: scale(0.97);
 }
 
 @media (hover: hover) {
@@ -359,6 +380,11 @@ body {
   cursor: pointer;
   transition: all 0.15s ease;
   font-family: inherit;
+}
+
+.app__btn--icon:active:not(:disabled) {
+  opacity: 0.7;
+  transform: scale(0.93);
 }
 
 @media (hover: hover) {
@@ -422,6 +448,11 @@ body {
   font-size: 0;
 }
 
+.bg-picker__swatch:active {
+  opacity: 0.7;
+  transform: scale(0.9);
+}
+
 @media (hover: hover) {
   .bg-picker__swatch:hover {
     border-color: var(--accent);
@@ -473,6 +504,11 @@ body {
   cursor: pointer;
   transition: all 0.15s ease;
   font-family: inherit;
+}
+
+.bg-picker__type-btn:active {
+  opacity: 0.7;
+  transform: scale(0.97);
 }
 
 @media (hover: hover) {
@@ -679,6 +715,11 @@ body {
   transition: all 0.15s ease;
 }
 
+.no-credits__close:active {
+  opacity: 0.7;
+  transform: scale(0.9);
+}
+
 @media (hover: hover) {
   .no-credits__close:hover {
     background: var(--border);
@@ -743,6 +784,11 @@ body {
   font-family: inherit;
 }
 
+.no-credits__btn-primary:active {
+  opacity: 0.8;
+  transform: scale(0.97);
+}
+
 @media (hover: hover) {
   .no-credits__btn-primary:hover {
     background: var(--accent-hover);
@@ -763,6 +809,10 @@ body {
   cursor: pointer;
   transition: color 0.15s ease;
   font-family: inherit;
+}
+
+.no-credits__btn-secondary:active {
+  opacity: 0.7;
 }
 
 @media (hover: hover) {
@@ -823,6 +873,7 @@ body {
   border-top: 1px solid var(--border);
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.1);
   padding: 16px 24px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
   animation: cookieBannerSlideUp 0.3s ease;
 }
 
@@ -867,6 +918,11 @@ body {
   font-family: inherit;
   transition: all 0.15s ease;
   white-space: nowrap;
+}
+
+.cookie-banner__btn:active {
+  opacity: 0.7;
+  transform: scale(0.97);
 }
 
 .cookie-banner__btn--accept {
@@ -934,6 +990,11 @@ body {
   white-space: nowrap;
 }
 
+.app__shape-dropdown-item:active {
+  opacity: 0.7;
+  background: var(--accent-light);
+}
+
 @media (hover: hover) {
   .app__shape-dropdown-item:hover {
     background: var(--accent-light);
@@ -950,8 +1011,14 @@ body {
   color: var(--text-secondary);
 }
 
-.app__shape-dropdown-item:hover svg {
-  color: var(--accent);
+/* ─── Collapsible Controls Panel (mobile only) ──────────── */
+
+.app__controls-toggle {
+  display: none; /* Hidden on desktop */
+}
+
+.app__controls-panel {
+  display: contents; /* On desktop, behaves as if wrapper doesn't exist */
 }
 
 /* ─── Responsive ─────────────────────────────────────────── */
@@ -1014,5 +1081,104 @@ body {
     flex-direction: column;
     text-align: center;
     gap: 12px;
+  }
+}
+
+/* ─── Touch Target Expansion (touch devices only) ────────── */
+
+@media (pointer: coarse) {
+  /* -- Controls Toggle Button (mobile) -- */
+  .app__controls-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .app__controls-toggle:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+
+  .app__controls-toggle--open {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .app__controls-toggle-chevron {
+    transition: transform 0.2s ease;
+    margin-left: auto;
+  }
+
+  .app__controls-toggle--open .app__controls-toggle-chevron {
+    transform: rotate(180deg);
+  }
+
+  /* -- Collapsible panel -- */
+  .app__controls-panel--closed {
+    display: none;
+  }
+
+  .app__controls-panel--open {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    animation: controlsPanelSlideDown 0.2s ease;
+  }
+
+  @keyframes controlsPanelSlideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .app__btn--icon {
+    position: relative;
+  }
+
+  .app__btn--icon::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+  }
+
+  .bg-picker__swatch {
+    position: relative;
+  }
+
+  .bg-picker__swatch::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+  }
+
+  .app__shape-dropdown-item {
+    min-height: 44px;
+    padding: 10px 12px;
   }
 }
