@@ -38,27 +38,29 @@ export const AdGateModal: React.FC<AdGateModalProps> = ({
     onComplete();
   }, [canContinue, onComplete]);
 
-  // Close on Escape
+  // Close on Escape (only after countdown finishes)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && canContinue) onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, canContinue]);
 
   return (
-    <div className="ad-gate" onClick={onClose}>
+    <div className="ad-gate" onClick={canContinue ? onClose : undefined}>
       <div className="ad-gate__card" onClick={(e) => e.stopPropagation()}>
-        <button
-          className="ad-gate__close"
-          onClick={onClose}
-          aria-label="Close"
-        >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M6 6L14 14M14 6L6 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </button>
+        {canContinue && (
+          <button
+            className="ad-gate__close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M6 6L14 14M14 6L6 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
 
         <div className="ad-gate__header">
           <div className="ad-gate__icon">

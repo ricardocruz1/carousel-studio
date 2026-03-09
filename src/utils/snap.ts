@@ -5,7 +5,7 @@
  */
 
 /** Snap threshold in % — when within this distance, snap to the guide */
-export const SNAP_THRESHOLD = 2;
+const SNAP_THRESHOLD = 2;
 
 /** A snap guide line to render */
 export interface SnapGuide {

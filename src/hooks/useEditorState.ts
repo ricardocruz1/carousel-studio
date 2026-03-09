@@ -161,17 +161,6 @@ export function useEditorState() {
 
   // ─── Image offset (pan/zoom) operations ───────────────────────────────
 
-  const updateImageOffset = useCallback((slotId: string, updates: { offsetX?: number; offsetY?: number; scale?: number }) => {
-    updateWithHistory((prev) => {
-      const img = prev.images[slotId];
-      if (!img) return prev;
-      return {
-        ...prev,
-        images: { ...prev.images, [slotId]: { ...img, ...updates } },
-      };
-    });
-  }, [updateWithHistory]);
-
   const updateImageOffsetNoHistory = useCallback((slotId: string, updates: { offsetX?: number; offsetY?: number; scale?: number }) => {
     setState((prev) => {
       const img = prev.images[slotId];
@@ -388,7 +377,6 @@ export function useEditorState() {
     setImage,
     removeImage,
     batchSetImages,
-    updateImageOffset,
     updateImageOffsetNoHistory,
     setCurrentSlide,
     setExporting,

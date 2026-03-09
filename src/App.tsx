@@ -19,6 +19,17 @@ import { exportCarousel, renderSingleSlide, MAX_CANVAS_PIXELS } from './utils/ex
 import { saveProject, loadProject } from './utils/project';
 import { loadFontsForFamilies } from './utils/fontLoader';
 import { compressImage } from './utils/imageCompress';
+import {
+  trackLayoutSelected,
+  trackCustomLayoutOpened,
+  trackExport,
+  trackAspectRatioChanged,
+  trackImageAdded,
+  trackTextOverlayAdded,
+  trackShapeOverlayAdded,
+  trackProjectSaved,
+  trackProjectLoaded,
+} from './utils/analytics';
 import type { CarouselLayout, TextOverlay, ShapeOverlay, ShapeType } from './types';
 import { ASPECT_RATIOS, ASPECT_RATIO_OPTIONS, INSTAGRAM_WIDTH, FONT_OPTIONS } from './types';
 import './App.css';
@@ -252,6 +263,7 @@ const App: React.FC = () => {
         state.shapeOverlays,
       );
       consumeExport();
+      trackExport('zip', selectedLayout.slideCount, exportScale);
     } catch (error) {
       console.error('Export failed:', error);
       showToast('Export failed. Please try again.');
@@ -345,6 +357,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleCustomClick = () => {
+    trackCustomLayoutOpened();
     setIsBuilding(true);
   };
 
@@ -352,11 +365,24 @@ const App: React.FC = () => {
     setCustomLayout(layout);
     setIsBuilding(false);
     selectLayout('custom');
+    trackLayoutSelected('custom', 'Custom');
   };
+
+  const handleSelectLayout = useCallback((layoutId: string) => {
+    selectLayout(layoutId);
+    const layout = getLayoutById(layoutId);
+    trackLayoutSelected(layoutId, layout?.name ?? layoutId);
+  }, [selectLayout]);
 
   const handleBuilderCancel = () => {
     setIsBuilding(false);
   };
+
+  const handleSetImage = useCallback((slotId: string, file: File) => {
+    setImage(slotId, file);
+    const idx = selectedLayout?.slots.findIndex((s) => s.id === slotId) ?? -1;
+    trackImageAdded(idx);
+  }, [setImage, selectedLayout]);
 
   const handleEditLayout = () => {
     setIsBuilding(true);
@@ -395,6 +421,7 @@ const App: React.FC = () => {
       zIndex: nextZ,
     };
     addTextOverlay(overlay);
+    trackTextOverlayAdded();
   }, [selectedLayout, state.currentSlide, state.textOverlays, state.shapeOverlays, addTextOverlay]);
 
   // ─── Add Shape Overlay ─────────────────────────────────
@@ -450,6 +477,7 @@ const App: React.FC = () => {
       zIndex: nextZ,
     };
     addShapeOverlay(shape);
+    trackShapeOverlayAdded();
   }, [selectedLayout, state.currentSlide, state.textOverlays, state.shapeOverlays, addShapeOverlay]);
 
   // ─── Batch Upload ──────────────────────────────────────
@@ -488,6 +516,7 @@ const App: React.FC = () => {
   const handleSaveProject = useCallback(async () => {
     try {
       await saveProject(state, customLayout);
+      trackProjectSaved();
     } catch (err) {
       console.error('Save failed:', err);
       showToast('Failed to save project.');
@@ -526,6 +555,8 @@ const App: React.FC = () => {
           const families = project.textOverlays.map((o: TextOverlay) => o.fontFamily);
           loadFontsForFamilies(families);
         }
+
+        trackProjectLoaded();
       } catch (err) {
         console.error('Load failed:', err);
         showToast('Failed to load project. The file may be corrupted or incompatible.');
@@ -628,7 +659,7 @@ const App: React.FC = () => {
             <LayoutPicker
               selectedLayoutId={state.selectedLayoutId}
               aspectRatio={state.aspectRatio}
-              onSelectLayout={selectLayout}
+              onSelectLayout={handleSelectLayout}
               onCustomClick={handleCustomClick}
             />
           </section>
@@ -643,7 +674,7 @@ const App: React.FC = () => {
                   <button
                     key={ratio}
                     className={`app__aspect-btn ${state.aspectRatio === ratio ? 'app__aspect-btn--active' : ''}`}
-                    onClick={() => setAspectRatio(ratio)}
+                    onClick={() => { setAspectRatio(ratio); trackAspectRatioChanged(ratio); }}
                   >
                     <span
                       className="app__aspect-icon"
@@ -934,7 +965,7 @@ const App: React.FC = () => {
               background={state.background}
               textOverlays={state.textOverlays}
               shapeOverlays={state.shapeOverlays}
-              onSetImage={setImage}
+              onSetImage={handleSetImage}
               onRemoveImage={removeImage}
               onSetCurrentSlide={setCurrentSlide}
               onUpdateTextOverlay={updateTextOverlay}

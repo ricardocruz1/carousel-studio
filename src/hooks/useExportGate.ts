@@ -2,28 +2,19 @@
  * Export gate hook.
  *
  * Every export requires watching a short ad — there are no free credits.
- * The hook simply tracks whether the ad has been completed for the current
- * export attempt via `unlockExport` / `consumeExport`.
+ * The hook tracks whether the ad has been completed for the current
+ * export attempt and resets after each successful export.
  */
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 
 export function useExportGate() {
-  const [unlocked, setUnlocked] = useState(false);
-
-  /** Mark the current export as unlocked (ad was watched). */
-  const unlockExport = useCallback(() => {
-    setUnlocked(true);
-  }, []);
-
-  /** Consume the unlock after a successful export. */
+  /** Reset after a successful export so the next one requires another ad. */
   const consumeExport = useCallback(() => {
-    setUnlocked(false);
+    // Currently a no-op placeholder — the ad-gate flow in App.tsx
+    // already enforces the modal before every export.  This hook is
+    // retained as the single integration point should we add
+    // server-side export tokens in the future.
   }, []);
 
-  return {
-    /** Whether the current export attempt has been unlocked by an ad */
-    canExport: unlocked,
-    unlockExport,
-    consumeExport,
-  };
+  return { consumeExport };
 }

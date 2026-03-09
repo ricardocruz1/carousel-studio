@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 
 const CONSENT_KEY = 'carousel-studio-cookie-consent';
 
-export type ConsentStatus = 'pending' | 'accepted' | 'rejected';
+type ConsentStatus = 'pending' | 'accepted' | 'rejected';
 
 /**
  * Manages cookie/ad consent state with localStorage persistence.

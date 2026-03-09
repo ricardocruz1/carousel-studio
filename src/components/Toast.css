@@ -107,3 +107,19 @@
     color: var(--text-primary);
   }
 }
+
+@media (pointer: coarse) {
+  .toast__close {
+    position: relative;
+  }
+
+  .toast__close::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+  }
+}
