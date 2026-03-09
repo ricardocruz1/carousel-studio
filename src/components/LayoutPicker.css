@@ -186,6 +186,14 @@
   background: var(--bg);
 }
 
+/* Spacer keeps the same content height the SVG used to provide in flow,
+   so align-items:stretch on the scroll row doesn't shrink all cards. */
+.layout-card__preview--custom::before {
+  content: '';
+  display: block;
+  height: 32px;
+}
+
 .layout-card__preview--custom svg {
   position: absolute;
   top: 50%;

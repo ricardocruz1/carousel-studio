@@ -160,8 +160,12 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
 
   // ─── Computed ───────────────────────────────────────────
   const totalCols = slideCount * COLS_PER_SLIDE;
+  // Cell size is based on at most 2 slides so the canvas height stays
+  // constant when adding more slides.  Extra slides extend the width and
+  // scroll horizontally via builder__canvas-scroll.
+  const referenceCols = Math.min(totalCols, 2 * COLS_PER_SLIDE);
   const cellSize = clamp(
-    Math.floor(PREFERRED_CANVAS_WIDTH / totalCols),
+    Math.floor(PREFERRED_CANVAS_WIDTH / referenceCols),
     MIN_CELL_SIZE,
     MAX_CELL_SIZE
   );
@@ -519,7 +523,10 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
 
       {/* ── Canvas ──────────────────────────────────────── */}
       <div className="builder__canvas-wrapper">
-        <div className="builder__canvas-scroll">
+        <div
+          className="builder__canvas-scroll"
+          style={{ height: canvasHeight + 64 }}
+        >
           {/* Slide labels above canvas */}
           <div
             className="builder__slide-labels"

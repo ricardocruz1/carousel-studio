@@ -168,7 +168,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 20px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -176,8 +176,9 @@
 
 .builder__canvas-scroll {
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: clip;
   max-width: 100%;
+  padding: 12px 12px 20px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -553,7 +554,7 @@
   }
 
   .builder__canvas-wrapper {
-    padding: 12px;
+    padding: 4px;
   }
 }
 
