@@ -17,6 +17,7 @@
 
 .layout-picker__scroll {
   display: flex;
+  align-items: stretch;
   gap: 12px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
@@ -94,6 +95,13 @@
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
+.layout-card__preview-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-height: 0;
+}
+
 .layout-card__preview {
   position: relative;
   width: 100%;
@@ -122,9 +130,6 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  margin: 2px;
-  width: calc(var(--w) - 4px);
-  height: calc(var(--h) - 4px);
 }
 
 .layout-card__slot-number {

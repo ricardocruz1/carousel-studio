@@ -93,8 +93,8 @@ const layout3: CarouselLayout = {
  *
  * Visual (3 slides):
  * |--- Slide 1 ---|--- Slide 2 ---|--- Slide 3 ---|
- * | P1    | P2 (bridge 1-2)| P4   | P5            |
- * |       |   P3 (bridge 1-2)     |               |
+ * | P1    | P2     | P4    | P5                    |
+ * |       | P3 (bridges 1-2)| P5                   |
  */
 const layout4: CarouselLayout = {
   id: 'cascade-5',
@@ -104,16 +104,16 @@ const layout4: CarouselLayout = {
   slideCount: 3,
   slots: [
     { id: 'slot-1', x: 0, y: 0, width: 20, height: 100 },
-    { id: 'slot-2', x: 20, y: 0, width: 27, height: 50 },
+    { id: 'slot-2', x: 20, y: 0, width: 20, height: 50 },
     { id: 'slot-3', x: 20, y: 50, width: 40, height: 50 },
-    { id: 'slot-4', x: 47, y: 0, width: 20, height: 50 },
+    { id: 'slot-4', x: 40, y: 0, width: 20, height: 50 },
     { id: 'slot-5', x: 60, y: 0, width: 40, height: 100 },
   ],
   thumbnailSlots: [
     { id: 'slot-1', x: 0, y: 0, width: 20, height: 100 },
-    { id: 'slot-2', x: 20, y: 0, width: 27, height: 50 },
+    { id: 'slot-2', x: 20, y: 0, width: 20, height: 50 },
     { id: 'slot-3', x: 20, y: 50, width: 40, height: 50 },
-    { id: 'slot-4', x: 47, y: 0, width: 20, height: 50 },
+    { id: 'slot-4', x: 40, y: 0, width: 20, height: 50 },
     { id: 'slot-5', x: 60, y: 0, width: 40, height: 100 },
   ],
 };
