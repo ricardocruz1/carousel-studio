@@ -149,7 +149,155 @@ const layout5: CarouselLayout = {
   ],
 };
 
-export const layouts: CarouselLayout[] = [layout1, layout2, layout3, layout4, layout5];
+/**
+ * Layout 6: "Panorama" - 2 photos across 2 slides
+ * Two full-width horizontal bands, both bridging the slide boundary.
+ *
+ * Visual (2 slides):
+ * |--- Slide 1 ---|--- Slide 2 ---|
+ * |     Photo 1 (full width top)   |
+ * |     Photo 2 (full width bottom)|
+ */
+const layout6: CarouselLayout = {
+  id: 'panorama-2',
+  name: 'Panorama',
+  description: '2 photos in panoramic bands bridging both slides',
+  imageCount: 2,
+  slideCount: 2,
+  slots: [
+    { id: 'slot-1', x: 0, y: 0, width: 100, height: 50 },
+    { id: 'slot-2', x: 0, y: 50, width: 100, height: 50 },
+  ],
+  thumbnailSlots: [
+    { id: 'slot-1', x: 0, y: 0, width: 100, height: 50 },
+    { id: 'slot-2', x: 0, y: 50, width: 100, height: 50 },
+  ],
+};
+
+/**
+ * Layout 7: "Staircase" - 3 photos across 3 slides
+ * Diagonal descending pattern, each photo bridges a slide boundary.
+ *
+ * Visual (3 slides):
+ * |--- Slide 1 ---|--- Slide 2 ---|--- Slide 3 ---|
+ * |  P1 (bridge)  |               |               |
+ * |       |  P2 (bridge)  |       |               |
+ * |               |       | P3 (bridge)           |
+ */
+const layout7: CarouselLayout = {
+  id: 'staircase-3',
+  name: 'Staircase',
+  description: '3 photos in a diagonal staircase pattern across 3 slides',
+  imageCount: 3,
+  slideCount: 3,
+  slots: [
+    { id: 'slot-1', x: 0, y: 0, width: 45, height: 33 },
+    { id: 'slot-2', x: 28, y: 33, width: 44, height: 34 },
+    { id: 'slot-3', x: 55, y: 67, width: 45, height: 33 },
+  ],
+  thumbnailSlots: [
+    { id: 'slot-1', x: 0, y: 0, width: 45, height: 33 },
+    { id: 'slot-2', x: 28, y: 33, width: 44, height: 34 },
+    { id: 'slot-3', x: 55, y: 67, width: 45, height: 33 },
+  ],
+};
+
+/**
+ * Layout 8: "Spotlight" - 4 photos across 3 slides
+ * One large hero image spanning slides 1-2, with 3 smaller supporting
+ * images stacked on the right across slides 2-3.
+ *
+ * Visual (3 slides):
+ * |--- Slide 1 ---|--- Slide 2 ---|--- Slide 3 ---|
+ * |                |       | P2                    |
+ * |   P1 (hero)            | P3                    |
+ * |                |       | P4                    |
+ */
+const layout8: CarouselLayout = {
+  id: 'spotlight-4',
+  name: 'Spotlight',
+  description: '1 hero image with 3 supporting photos across 3 slides',
+  imageCount: 4,
+  slideCount: 3,
+  slots: [
+    { id: 'slot-1', x: 0, y: 0, width: 55, height: 100 },
+    { id: 'slot-2', x: 55, y: 0, width: 45, height: 33 },
+    { id: 'slot-3', x: 55, y: 33, width: 45, height: 34 },
+    { id: 'slot-4', x: 55, y: 67, width: 45, height: 33 },
+  ],
+  thumbnailSlots: [
+    { id: 'slot-1', x: 0, y: 0, width: 55, height: 100 },
+    { id: 'slot-2', x: 55, y: 0, width: 45, height: 33 },
+    { id: 'slot-3', x: 55, y: 33, width: 45, height: 34 },
+    { id: 'slot-4', x: 55, y: 67, width: 45, height: 33 },
+  ],
+};
+
+/**
+ * Layout 9: "Weave" - 4 photos across 3 slides
+ * Interlocking pattern with top/bottom photos offset horizontally.
+ *
+ * Visual (3 slides):
+ * |--- Slide 1 ---|--- Slide 2 ---|--- Slide 3 ---|
+ * |  P1 (top)             |  P3 (top)             |
+ * |       |  P2 (bottom)         |  P4 (bottom)   |
+ */
+const layout9: CarouselLayout = {
+  id: 'weave-4',
+  name: 'Weave',
+  description: '4 photos in a woven interlocking pattern across 3 slides',
+  imageCount: 4,
+  slideCount: 3,
+  slots: [
+    { id: 'slot-1', x: 0, y: 0, width: 45, height: 50 },
+    { id: 'slot-2', x: 22, y: 50, width: 45, height: 50 },
+    { id: 'slot-3', x: 45, y: 0, width: 33, height: 50 },
+    { id: 'slot-4', x: 67, y: 50, width: 33, height: 50 },
+  ],
+  thumbnailSlots: [
+    { id: 'slot-1', x: 0, y: 0, width: 45, height: 50 },
+    { id: 'slot-2', x: 22, y: 50, width: 45, height: 50 },
+    { id: 'slot-3', x: 45, y: 0, width: 33, height: 50 },
+    { id: 'slot-4', x: 67, y: 50, width: 33, height: 50 },
+  ],
+};
+
+/**
+ * Layout 10: "Gallery" - 6 photos across 4 slides
+ * Gallery wall arrangement: tall hero, two stacked mid-size images,
+ * and three stacked smaller images. Every slot bridges a slide boundary.
+ *
+ * Visual (4 slides):
+ * |--- Slide 1 ---|--- Slide 2 ---|--- Slide 3 ---|--- Slide 4 ---|
+ * | P1 (tall hero) | P2 (mid)     | P4 (small)                    |
+ * |                 |              | P5 (small)                    |
+ * |                 | P3 (mid)     | P6 (small)                    |
+ */
+const layout10: CarouselLayout = {
+  id: 'gallery-6',
+  name: 'Gallery',
+  description: '6 photos in a gallery wall arrangement across 4 slides',
+  imageCount: 6,
+  slideCount: 4,
+  slots: [
+    { id: 'slot-1', x: 0, y: 0, width: 30, height: 100 },
+    { id: 'slot-2', x: 30, y: 0, width: 30, height: 55 },
+    { id: 'slot-3', x: 30, y: 55, width: 30, height: 45 },
+    { id: 'slot-4', x: 60, y: 0, width: 40, height: 35 },
+    { id: 'slot-5', x: 60, y: 35, width: 40, height: 30 },
+    { id: 'slot-6', x: 60, y: 65, width: 40, height: 35 },
+  ],
+  thumbnailSlots: [
+    { id: 'slot-1', x: 0, y: 0, width: 30, height: 100 },
+    { id: 'slot-2', x: 30, y: 0, width: 30, height: 55 },
+    { id: 'slot-3', x: 30, y: 55, width: 30, height: 45 },
+    { id: 'slot-4', x: 60, y: 0, width: 40, height: 35 },
+    { id: 'slot-5', x: 60, y: 35, width: 40, height: 30 },
+    { id: 'slot-6', x: 60, y: 65, width: 40, height: 35 },
+  ],
+};
+
+export const layouts: CarouselLayout[] = [layout1, layout2, layout3, layout4, layout5, layout6, layout7, layout8, layout9, layout10];
 
 export function getLayoutById(id: string): CarouselLayout | undefined {
   return layouts.find((l) => l.id === id);

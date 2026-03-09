@@ -66,15 +66,6 @@ export const LayoutPicker: React.FC<LayoutPickerProps> = ({
         )}
 
         <div className="layout-picker__scroll" ref={scrollRef}>
-          {layouts.map((layout) => (
-            <LayoutCard
-              key={layout.id}
-              layout={layout}
-              aspectRatio={aspectRatio}
-              isSelected={layout.id === selectedLayoutId}
-              onClick={() => onSelectLayout(layout.id)}
-            />
-          ))}
           {onCustomClick && (
             <button
               className="layout-card layout-card--custom"
@@ -100,6 +91,15 @@ export const LayoutPicker: React.FC<LayoutPickerProps> = ({
               </div>
             </button>
           )}
+          {layouts.map((layout) => (
+            <LayoutCard
+              key={layout.id}
+              layout={layout}
+              aspectRatio={aspectRatio}
+              isSelected={layout.id === selectedLayoutId}
+              onClick={() => onSelectLayout(layout.id)}
+            />
+          ))}
         </div>
 
         {canScrollRight && (
