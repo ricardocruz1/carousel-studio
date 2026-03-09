@@ -855,9 +855,9 @@ const App: React.FC = () => {
                       value={exportScale}
                       onChange={handleScaleChange}
                     >
-                      <option value={1}>Low</option>
-                      <option value={2}>Medium</option>
-                      <option value={3}>High</option>
+                      <option value={1}>Low (1080px)</option>
+                      <option value={2}>Medium (2160px)</option>
+                      <option value={3}>High (3240px)</option>
                     </select>
                   </div>
 

@@ -182,11 +182,15 @@
 }
 
 .layout-card__preview--custom {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   color: var(--text-tertiary);
   background: var(--bg);
+}
+
+.layout-card__preview--custom svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 @media (hover: hover) {
