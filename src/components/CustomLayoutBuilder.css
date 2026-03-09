@@ -361,7 +361,7 @@
 @media (hover: hover) {
   .builder__slot-delete:hover {
     transform: scale(1.15);
-    background: #e8384f;
+    background: var(--danger-hover, #e8384f);
   }
 }
 

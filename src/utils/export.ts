@@ -23,6 +23,8 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 
 /**
  * Draw a single image into a region of the canvas using "cover" scaling.
+ * offsetX/offsetY are 0-100 percentages matching CSS object-position semantics:
+ *   50 = centered (default), 0 = left/top edge, 100 = right/bottom edge.
  */
 function drawImageCover(
   ctx: CanvasRenderingContext2D,
@@ -31,9 +33,9 @@ function drawImageCover(
   dy: number,
   dw: number,
   dh: number,
-  offsetX: number = 0,
-  offsetY: number = 0,
-  scale: number = 1
+  offsetX: number = 50,
+  offsetY: number = 50,
+  _scale: number = 1
 ) {
   const imgAspect = img.naturalWidth / img.naturalHeight;
   const regionAspect = dw / dh;
@@ -41,28 +43,20 @@ function drawImageCover(
   let sx: number, sy: number, sw: number, sh: number;
 
   if (imgAspect > regionAspect) {
+    // Image is wider than the region — crop horizontally
     sh = img.naturalHeight;
     sw = sh * regionAspect;
     sy = 0;
-    sx = (img.naturalWidth - sw) / 2;
+    sx = (img.naturalWidth - sw) * (offsetX / 100);
   } else {
+    // Image is taller than the region — crop vertically
     sw = img.naturalWidth;
     sh = sw / regionAspect;
     sx = 0;
-    sy = (img.naturalHeight - sh) / 2;
+    sy = (img.naturalHeight - sh) * (offsetY / 100);
   }
 
-  const scaledSw = sw / scale;
-  const scaledSh = sh / scale;
-  const centerX = sx + sw / 2;
-  const centerY = sy + sh / 2;
-  sx = centerX - scaledSw / 2 - offsetX * (sw / dw);
-  sy = centerY - scaledSh / 2 - offsetY * (sh / dh);
-
-  sx = Math.max(0, Math.min(sx, img.naturalWidth - scaledSw));
-  sy = Math.max(0, Math.min(sy, img.naturalHeight - scaledSh));
-
-  ctx.drawImage(img, sx, sy, scaledSw, scaledSh, dx, dy, dw, dh);
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
 }
 
 /**
@@ -431,4 +425,106 @@ export async function exportCarousel(
 
   const zipBlob = await zip.generateAsync({ type: 'blob' });
   saveAs(zipBlob, `carousel-${layout.name.toLowerCase().replace(/\s+/g, '-')}.zip`);
+}
+
+/**
+ * Render a single slide to a Blob (PNG).
+ * Used for sharing / copying a single slide without exporting the full zip.
+ */
+export async function renderSingleSlide(
+  slideIndex: number,
+  layout: CarouselLayout,
+  images: Record<string, PlacedImage>,
+  aspectRatio: AspectRatio = '1:1',
+  scale: number = 1,
+  background: BackgroundConfig = DEFAULT_BACKGROUND,
+  textOverlays: TextOverlay[] = [],
+  shapeOverlays: ShapeOverlay[] = []
+): Promise<Blob> {
+  scale = Math.min(3, Math.max(1, Math.round(scale)));
+
+  const config = ASPECT_RATIOS[aspectRatio];
+  const slideWidth = INSTAGRAM_WIDTH * scale;
+  const slideHeight = config.height * scale;
+
+  // We still render the full panoramic canvas so images/overlays positioned
+  // across slides render correctly, then we clip just the requested slide.
+  const totalWidth = slideWidth * layout.slideCount;
+  const totalHeight = slideHeight;
+
+  const fullCanvas = document.createElement('canvas');
+  fullCanvas.width = totalWidth;
+  fullCanvas.height = totalHeight;
+  const fullCtx = fullCanvas.getContext('2d');
+  if (!fullCtx) throw new Error('Could not create canvas context');
+
+  fullCtx.imageSmoothingEnabled = true;
+  fullCtx.imageSmoothingQuality = 'high';
+
+  // Draw background
+  drawBackground(fullCtx, background, totalWidth, totalHeight);
+
+  // Load and draw all images
+  for (const slot of layout.slots) {
+    const placedImage = images[slot.id];
+    if (placedImage) {
+      const img = await loadImage(placedImage.url);
+      const dx = (slot.x / 100) * totalWidth;
+      const dy = (slot.y / 100) * totalHeight;
+      const dw = (slot.width / 100) * totalWidth;
+      const dh = (slot.height / 100) * totalHeight;
+      drawImageCover(fullCtx, img, dx, dy, dw, dh, placedImage.offsetX, placedImage.offsetY, placedImage.scale);
+    }
+  }
+
+  // Wait for fonts
+  if (textOverlays.length > 0) {
+    await document.fonts.ready;
+  }
+
+  // Draw overlays in unified z-order
+  type OverlayEntry =
+    | { kind: 'text'; overlay: TextOverlay }
+    | { kind: 'shape'; overlay: ShapeOverlay };
+
+  const allOverlays: OverlayEntry[] = [
+    ...textOverlays.map((o) => ({ kind: 'text' as const, overlay: o })),
+    ...shapeOverlays.map((o) => ({ kind: 'shape' as const, overlay: o })),
+  ];
+  allOverlays.sort((a, b) => a.overlay.zIndex - b.overlay.zIndex);
+
+  for (const entry of allOverlays) {
+    if (entry.kind === 'text') {
+      drawTextOverlays(fullCtx, [entry.overlay], slideWidth, slideHeight, scale);
+    } else {
+      drawShapeOverlay(fullCtx, entry.overlay, slideWidth, slideHeight, scale);
+    }
+  }
+
+  // Clip the requested slide
+  const slideCanvas = document.createElement('canvas');
+  slideCanvas.width = slideWidth;
+  slideCanvas.height = slideHeight;
+  const slideCtx = slideCanvas.getContext('2d');
+  if (!slideCtx) throw new Error('Could not create slide canvas context');
+
+  slideCtx.imageSmoothingEnabled = true;
+  slideCtx.imageSmoothingQuality = 'high';
+
+  slideCtx.drawImage(
+    fullCanvas,
+    slideIndex * slideWidth, 0, slideWidth, slideHeight,
+    0, 0, slideWidth, slideHeight
+  );
+
+  return new Promise<Blob>((resolve, reject) => {
+    slideCanvas.toBlob(
+      (b) => {
+        if (b) resolve(b);
+        else reject(new Error('Failed to create blob'));
+      },
+      'image/png',
+      1.0
+    );
+  });
 }

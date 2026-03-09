@@ -43,6 +43,17 @@
   pointer-events: none;
 }
 
+.carousel-editor__center-guide {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed rgba(150, 150, 150, 0.25);
+  pointer-events: none;
+  z-index: 1;
+}
+
 /* ─── Image Slot ─────────────────────────────────────────── */
 
 .image-slot {
@@ -102,6 +113,24 @@
   object-fit: cover;
   display: block;
   border-radius: 4px;
+  /* object-position set via inline style for pan offset */
+}
+
+/* Move cursor on filled image slots to indicate repositionability */
+.image-slot--filled {
+  cursor: grab;
+  /* Prevent scroll during image pan on touch devices */
+  touch-action: none;
+}
+
+.image-slot--panning {
+  cursor: grabbing;
+}
+
+/* Hide the overlay during active panning */
+.image-slot__overlay--hidden {
+  opacity: 0 !important;
+  pointer-events: none;
 }
 
 .image-slot__error {
@@ -113,9 +142,9 @@
   justify-content: center;
   gap: 6px;
   background: var(--slot-bg);
-  border: 2px dashed #ff4757;
+  border: 2px dashed var(--danger);
   border-radius: 6px;
-  color: #ff4757;
+  color: var(--danger);
 }
 
 .image-slot__overlay {
@@ -172,7 +201,7 @@
   }
 
   .image-slot__action-btn--danger:hover {
-    background: #ff4757;
+    background: var(--danger);
     color: #fff;
   }
 }
@@ -287,4 +316,32 @@
     width: 44px;
     height: 44px;
   }
+}
+
+/* ─── Snap guide lines ─────────────────────────────────────── */
+
+.snap-guide-layer {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.snap-guide {
+  position: absolute;
+}
+
+.snap-guide--x {
+  width: 0;
+  border-left: 1px dashed rgba(255, 50, 100, 0.7);
+  top: 0;
+  bottom: 0;
+}
+
+.snap-guide--y {
+  height: 0;
+  border-top: 1px dashed rgba(255, 50, 100, 0.7);
+  left: 0;
+  right: 0;
 }

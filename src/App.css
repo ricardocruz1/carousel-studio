@@ -12,10 +12,43 @@
   --slot-bg: #f0f0f5;
   --slot-border: #d0d0da;
   --danger: #ff4757;
+  --danger-hover: #e8384f;
+  --success: #2ed573;
+  --warning: #e67e22;
+  --warning-bg: rgba(230, 126, 34, 0.08);
+  --toast-error-bg: #fff5f5;
+  --toast-success-bg: #f0fff4;
+  --toast-info-bg: #f5f3ff;
 
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Dark Mode ──────────────────────────────────────────── */
+
+html.dark {
+  --bg: #121218;
+  --surface: #1e1e28;
+  --border: #2e2e3a;
+  --accent: #8b7cf7;
+  --accent-hover: #9d90ff;
+  --accent-light: rgba(139, 124, 247, 0.1);
+  --accent-glow: rgba(139, 124, 247, 0.2);
+  --text-primary: #e8e8f0;
+  --text-secondary: #9b9baf;
+  --text-tertiary: #6b6b80;
+  --slot-bg: #1a1a24;
+  --slot-border: #2e2e3a;
+  --danger: #ff6b7a;
+  --danger-hover: #ff4757;
+  --success: #4ade80;
+  --warning: #f0a050;
+  --warning-bg: rgba(240, 160, 80, 0.12);
+  --toast-error-bg: #2a1a1c;
+  --toast-success-bg: #1a2a1c;
+  --toast-info-bg: #1e1a2e;
+  color-scheme: dark;
 }
 
 *,
@@ -65,6 +98,36 @@ body {
 
 /* ─── Credits Badge (always visible in header) ──────────── */
 
+.app__dark-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: absolute;
+  right: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.app__dark-toggle:active {
+  opacity: 0.7;
+  transform: scale(0.9);
+}
+
+@media (hover: hover) {
+  .app__dark-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
 .app__credits-badge {
   display: flex;
   align-items: center;
@@ -78,7 +141,7 @@ body {
   white-space: nowrap;
   transition: all 0.25s ease;
   position: absolute;
-  right: 0;
+  right: 42px;
 }
 
 .app__credits-badge--empty {
@@ -583,8 +646,8 @@ body {
 .app__canvas-warning {
   font-size: 0.7rem;
   font-weight: 600;
-  color: #e67e22;
-  background: rgba(230, 126, 34, 0.08);
+  color: var(--warning);
+  background: var(--warning-bg);
   padding: 2px 8px;
   border-radius: 4px;
 }
@@ -1034,6 +1097,10 @@ body {
   }
 
   .app__credits-badge {
+    position: static;
+  }
+
+  .app__dark-toggle {
     position: static;
   }
 

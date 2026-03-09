@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import type { CarouselLayout, PlacedImage, AspectRatio, TextOverlay, ShapeOverlay, BackgroundConfig } from '../types';
 import { ASPECT_RATIOS } from '../types';
 import { useToast } from '../hooks/useToast';
+import { compressImage } from '../utils/imageCompress';
+import type { SnapGuide } from '../utils/snap';
 import { TextOverlayLayer, FloatingToolbar } from './TextOverlayLayer';
 import { ShapeOverlayLayer, ShapeToolbar } from './ShapeOverlayLayer';
 import './CarouselEditor.css';
@@ -35,6 +37,8 @@ interface CarouselEditorProps {
   onRemoveShapeOverlay: (id: string) => void;
   onBringForward: (id: string, kind: 'text' | 'shape') => void;
   onSendBackward: (id: string, kind: 'text' | 'shape') => void;
+  onUpdateImageOffsetNoHistory: (slotId: string, updates: { offsetX?: number; offsetY?: number; scale?: number }) => void;
+  onPushImageHistorySnapshot: () => void;
 }
 
 export const CarouselEditor: React.FC<CarouselEditorProps> = ({
@@ -57,6 +61,8 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
   onRemoveShapeOverlay,
   onBringForward,
   onSendBackward,
+  onUpdateImageOffsetNoHistory,
+  onPushImageHistorySnapshot,
 }) => {
   const slideOffset = -(currentSlide * (100 / layout.slideCount));
   const config = ASPECT_RATIOS[aspectRatio];
@@ -73,6 +79,9 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
   const selectedShapeOverlay = selectedKind === 'shape' && selectedOverlayId
     ? shapeOverlays.find((o) => o.id === selectedOverlayId) ?? null
     : null;
+
+  // Snap guides state — set by overlay layers during drag, cleared on pointerup
+  const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
 
   // Handlers that enforce mutual exclusion
   const handleSelectText = useCallback((id: string | null) => {
@@ -111,10 +120,10 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
   const swipeRef = useRef<{ startX: number; startY: number; started: boolean } | null>(null);
 
   const handleSwipeStart = useCallback((e: React.PointerEvent) => {
-    // Only handle single-finger touch (or mouse) — ignore if it started on an overlay
+    // Only handle single-finger touch (or mouse) — ignore if it started on an overlay or filled image
     if (e.pointerType === 'mouse') return;
     const target = e.target as HTMLElement;
-    if (target.closest('[data-overlay-id], [data-shape-id], .shape-resize-handle')) return;
+    if (target.closest('[data-overlay-id], [data-shape-id], .shape-resize-handle, .image-slot--filled')) return;
     swipeRef.current = { startX: e.clientX, startY: e.clientY, started: true };
   }, []);
 
@@ -242,6 +251,7 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
               }}
             >
               {i > 0 && <div className="carousel-editor__slide-divider" />}
+              <div className="carousel-editor__center-guide" />
             </div>
           ))}
 
@@ -258,31 +268,56 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
               placedImage={images[slot.id]}
               onSetImage={onSetImage}
               onRemoveImage={onRemoveImage}
+              onUpdateOffsetNoHistory={onUpdateImageOffsetNoHistory}
+              onPushHistorySnapshot={onPushImageHistorySnapshot}
             />
           ))}
 
           {/* Text overlay layer */}
           <TextOverlayLayer
             overlays={textOverlays}
+            shapeOverlays={shapeOverlays}
             layout={layout}
+            currentSlide={currentSlide}
             selectedId={selectedKind === 'text' ? selectedOverlayId : null}
             onSelectedIdChange={handleSelectText}
             onUpdateNoHistory={onUpdateTextOverlayNoHistory}
             onPushSnapshot={onPushHistorySnapshot}
             onRemove={onRemoveTextOverlay}
+            onSnapGuidesChange={setSnapGuides}
           />
 
           {/* Shape overlay layer */}
           <ShapeOverlayLayer
             overlays={shapeOverlays}
+            textOverlays={textOverlays}
             layout={layout}
             aspectRatio={aspectRatio}
+            currentSlide={currentSlide}
             selectedId={selectedKind === 'shape' ? selectedOverlayId : null}
             onSelectedIdChange={handleSelectShape}
             onUpdateNoHistory={onUpdateShapeOverlayNoHistory}
             onPushSnapshot={onPushHistorySnapshot}
             onRemove={onRemoveShapeOverlay}
+            onSnapGuidesChange={setSnapGuides}
           />
+
+          {/* Snap guide lines */}
+          {snapGuides.length > 0 && (
+            <div className="snap-guide-layer" style={{ left: `${(currentSlide / layout.slideCount) * 100}%`, width: `${100 / layout.slideCount}%` }}>
+              {snapGuides.map((g, i) => (
+                <div
+                  key={`${g.axis}-${g.position}-${i}`}
+                  className={`snap-guide snap-guide--${g.axis}`}
+                  style={
+                    g.axis === 'x'
+                      ? { left: `${g.position}%`, top: 0, bottom: 0 }
+                      : { top: `${g.position}%`, left: 0, right: 0 }
+                  }
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -394,7 +429,12 @@ interface ImageSlotProps {
   placedImage?: PlacedImage;
   onSetImage: (slotId: string, file: File) => void;
   onRemoveImage: (slotId: string) => void;
+  onUpdateOffsetNoHistory: (slotId: string, updates: { offsetX?: number; offsetY?: number; scale?: number }) => void;
+  onPushHistorySnapshot: () => void;
 }
+
+/** Pixel distance threshold to distinguish a tap from a drag. */
+const PAN_DRAG_THRESHOLD = 4;
 
 const ImageSlot: React.FC<ImageSlotProps> = ({
   slotId,
@@ -406,11 +446,28 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
   placedImage,
   onSetImage,
   onRemoveImage,
+  onUpdateOffsetNoHistory,
+  onPushHistorySnapshot,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [imgError, setImgError] = useState(false);
   const { showToast } = useToast();
+
+  // Track whether a pan drag is in progress (to suppress overlay/click on filled images)
+  const [isPanning, setIsPanning] = useState(false);
+
+  // Pan drag state (stored in ref to avoid re-render per pointermove)
+  const panRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startOffsetX: number;
+    startOffsetY: number;
+    didDrag: boolean;
+    historyPushed: boolean;
+  } | null>(null);
 
   // Reset error state when a new image is placed
   useEffect(() => {
@@ -418,7 +475,7 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
   }, [placedImage?.url]);
 
   const handleFile = useCallback(
-    (file: File) => {
+    async (file: File) => {
       // Validate file size (max 50 MB)
       const MAX_FILE_SIZE = 50 * 1024 * 1024;
       if (file.size > MAX_FILE_SIZE) {
@@ -438,7 +495,14 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
         return;
       }
 
-      onSetImage(slotId, file);
+      // Auto-compress: downsample to max 3240px on longest dimension
+      try {
+        const compressed = await compressImage(file);
+        onSetImage(slotId, compressed);
+      } catch {
+        // If compression fails, use original file
+        onSetImage(slotId, file);
+      }
     },
     [slotId, onSetImage, showToast]
   );
@@ -497,9 +561,114 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
     []
   );
 
+  // ─── Drag-to-pan handlers ─────────────────────────────────────────
+
+  const handlePanPointerDown = useCallback((e: React.PointerEvent) => {
+    // Only start pan on filled image (not on action buttons)
+    if (!placedImage || imgError) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.image-slot__action-btn')) return;
+
+    panRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startOffsetX: placedImage.offsetX,
+      startOffsetY: placedImage.offsetY,
+      didDrag: false,
+      historyPushed: false,
+    };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [placedImage, imgError]);
+
+  const handlePanPointerMove = useCallback((e: React.PointerEvent) => {
+    const pan = panRef.current;
+    if (!pan || pan.pointerId !== e.pointerId) return;
+    if (!placedImage || !imgRef.current) return;
+
+    const dx = e.clientX - pan.startX;
+    const dy = e.clientY - pan.startY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (!pan.didDrag && dist < PAN_DRAG_THRESHOLD) return;
+
+    if (!pan.didDrag) {
+      pan.didDrag = true;
+      setIsPanning(true);
+    }
+
+    // Push undo snapshot once when drag actually starts
+    if (!pan.historyPushed) {
+      pan.historyPushed = true;
+      onPushHistorySnapshot();
+    }
+
+    const img = imgRef.current;
+    const slotEl = img.parentElement;
+    if (!slotEl) return;
+
+    const slotRect = slotEl.getBoundingClientRect();
+    const slotW = slotRect.width;
+    const slotH = slotRect.height;
+
+    // Determine which dimension has overflow (image is cropped along this axis)
+    const imgAspect = img.naturalWidth / img.naturalHeight;
+    const slotAspect = slotW / slotH;
+
+    let newOffsetX = pan.startOffsetX;
+    let newOffsetY = pan.startOffsetY;
+
+    if (imgAspect > slotAspect) {
+      // Image wider than slot — horizontal overflow, can pan horizontally
+      // The visible width of the image in "slot pixels" if fully shown would be:
+      // visibleFullWidth = slotH * imgAspect
+      // The overflow in slot pixels = visibleFullWidth - slotW
+      const overflowPx = slotH * imgAspect - slotW;
+      if (overflowPx > 0) {
+        // Drag right → image moves right → object-position X decreases
+        const deltaPercent = (-dx / overflowPx) * 100;
+        newOffsetX = Math.max(0, Math.min(100, pan.startOffsetX + deltaPercent));
+      }
+    } else {
+      // Image taller than slot — vertical overflow, can pan vertically
+      const overflowPx = (slotW / imgAspect) - slotH;
+      if (overflowPx > 0) {
+        // Drag down → image moves down → object-position Y decreases
+        const deltaPercent = (-dy / overflowPx) * 100;
+        newOffsetY = Math.max(0, Math.min(100, pan.startOffsetY + deltaPercent));
+      }
+    }
+
+    onUpdateOffsetNoHistory(slotId, { offsetX: newOffsetX, offsetY: newOffsetY });
+  }, [placedImage, slotId, onUpdateOffsetNoHistory, onPushHistorySnapshot]);
+
+  const handlePanPointerUp = useCallback((e: React.PointerEvent) => {
+    const pan = panRef.current;
+    if (!pan || pan.pointerId !== e.pointerId) return;
+
+    // If it was a tap (not a drag), let the click handler deal with it
+    if (!pan.didDrag) {
+      panRef.current = null;
+      return;
+    }
+
+    panRef.current = null;
+    // Delay clearing isPanning to prevent the overlay from flash-showing on pointerup
+    requestAnimationFrame(() => {
+      setIsPanning(false);
+    });
+  }, []);
+
+  const handlePanPointerCancel = useCallback((e: React.PointerEvent) => {
+    const pan = panRef.current;
+    if (!pan || pan.pointerId !== e.pointerId) return;
+    panRef.current = null;
+    setIsPanning(false);
+  }, []);
+
   return (
     <div
-      className={`image-slot ${isDragOver ? 'image-slot--drag-over' : ''} ${placedImage ? 'image-slot--filled' : ''}`}
+      className={`image-slot ${isDragOver ? 'image-slot--drag-over' : ''} ${placedImage ? 'image-slot--filled' : ''} ${isPanning ? 'image-slot--panning' : ''}`}
       style={{
         left: `${x}%`,
         top: `${y}%`,
@@ -510,6 +679,10 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onPointerDown={handlePanPointerDown}
+      onPointerMove={handlePanPointerMove}
+      onPointerUp={handlePanPointerUp}
+      onPointerCancel={handlePanPointerCancel}
     >
       <input
         ref={inputRef}
@@ -532,14 +705,18 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
             </div>
           ) : (
             <img
+              ref={imgRef}
               src={placedImage.url}
               alt={`Image ${index + 1}`}
               className="image-slot__image"
               draggable={false}
               onError={() => setImgError(true)}
+              style={{
+                objectPosition: `${placedImage.offsetX}% ${placedImage.offsetY}%`,
+              }}
             />
           )}
-          <div className="image-slot__overlay">
+          <div className={`image-slot__overlay ${isPanning ? 'image-slot__overlay--hidden' : ''}`}>
             <button
               className="image-slot__action-btn"
               onClick={handleReplace}

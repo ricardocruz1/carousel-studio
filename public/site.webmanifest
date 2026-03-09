@@ -3,9 +3,13 @@
   "short_name": "Carousel Studio",
   "description": "Create stunning Instagram carousels in seconds",
   "start_url": "/",
+  "scope": "/",
+  "id": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#1a1a2e",
   "theme_color": "#6c5ce7",
+  "categories": ["design", "photo", "social"],
   "icons": [
     {
       "src": "/android-chrome-192x192.png",

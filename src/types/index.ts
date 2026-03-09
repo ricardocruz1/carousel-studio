@@ -18,7 +18,7 @@ export interface AspectRatioConfig {
 
 export const ASPECT_RATIOS: Record<AspectRatio, AspectRatioConfig> = {
   '1:1': { width: 1080, height: 1080, label: 'Square', gridRows: 12, cssRatio: '1 / 1' },
-  '4:5': { width: 1080, height: 1350, label: 'Portrait', gridRows: 15, cssRatio: '4 / 5' },
+  '4:5': { width: 1080, height: 1350, label: 'Portrait', gridRows: 16, cssRatio: '4 / 5' },
   '1.91:1': { width: 1080, height: 566, label: 'Landscape', gridRows: 6, cssRatio: '1.91 / 1' },
 };
 
@@ -62,7 +62,8 @@ export interface PlacedImage {
   slotId: string;
   file: File;
   url: string; // Object URL for preview
-  // Pan/zoom offsets (future enhancement)
+  // Pan offset as 0-100 percentage matching CSS object-position semantics
+  // 50 = centered (default), 0 = top/left edge, 100 = bottom/right edge
   offsetX: number;
   offsetY: number;
   scale: number;

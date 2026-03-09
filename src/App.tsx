@@ -8,17 +8,23 @@ import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { TermsOfService } from './components/TermsOfService';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { ToastContainer } from './components/Toast';
+import { Onboarding, isOnboardingDone } from './components/Onboarding';
 import { useEditorState } from './hooks/useEditorState';
 import { useExportGate } from './hooks/useExportGate';
 import { useCookieConsent } from './hooks/useCookieConsent';
+import { useDarkMode } from './hooks/useDarkMode';
 import { useToast } from './hooks/useToast';
 import { getLayoutById } from './layouts';
-import { exportCarousel, MAX_CANVAS_PIXELS } from './utils/export';
+import { exportCarousel, renderSingleSlide, MAX_CANVAS_PIXELS } from './utils/export';
 import { saveProject, loadProject } from './utils/project';
 import { loadFontsForFamilies } from './utils/fontLoader';
+import { compressImage } from './utils/imageCompress';
 import type { CarouselLayout, TextOverlay, ShapeOverlay, ShapeType } from './types';
 import { ASPECT_RATIOS, ASPECT_RATIO_OPTIONS, INSTAGRAM_WIDTH, FONT_OPTIONS } from './types';
 import './App.css';
+
+const AUTOSAVE_KEY = 'carousel-studio-autosave';
+const AUTOSAVE_DEBOUNCE_MS = 1000;
 
 let _overlayIdCounter = 0;
 function nextOverlayId(prefix: string = 'text'): string {
@@ -51,6 +57,7 @@ const App: React.FC = () => {
     setImage,
     removeImage,
     batchSetImages,
+    updateImageOffsetNoHistory,
     setCurrentSlide,
     setExporting,
     setAspectRatio,
@@ -76,6 +83,7 @@ const App: React.FC = () => {
 
   const { canExport, credits, consumeExport, grantAdCredits, freeExports, exportsPerAd } = useExportGate();
   const { consent, accept: acceptCookies, reject: rejectCookies } = useCookieConsent();
+  const { isDark, toggle: toggleDarkMode } = useDarkMode();
   const { showToast } = useToast();
   const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [isBuilding, setIsBuilding] = useState(false);
@@ -89,6 +97,7 @@ const App: React.FC = () => {
     typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
   );
   const [controlsOpen, setControlsOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(() => !isOnboardingDone());
 
   useEffect(() => {
     const mq = window.matchMedia('(pointer: coarse)');
@@ -148,6 +157,88 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo]);
 
+  // ─── Auto-save to localStorage (debounced) ─────────────
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasRestoredRef = useRef(false);
+
+  // On mount: restore saved state
+  useEffect(() => {
+    if (hasRestoredRef.current) return;
+    hasRestoredRef.current = true;
+
+    try {
+      const raw = localStorage.getItem(AUTOSAVE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (!saved || !saved.selectedLayoutId) return;
+
+      // Restore custom layout if it was saved
+      if (saved.customLayout) {
+        setCustomLayout(saved.customLayout as CarouselLayout);
+      }
+
+      // Restore state (without images — they can't be serialized)
+      restoreState({
+        selectedLayoutId: saved.selectedLayoutId,
+        aspectRatio: saved.aspectRatio ?? '1:1',
+        background: saved.background,
+        textOverlays: saved.textOverlays ?? [],
+        shapeOverlays: saved.shapeOverlays ?? [],
+        currentSlide: saved.currentSlide ?? 0,
+      });
+
+      // Lazy-load any Google Fonts from restored overlays
+      if (saved.textOverlays?.length > 0) {
+        const families = saved.textOverlays.map((o: TextOverlay) => o.fontFamily);
+        loadFontsForFamilies(families);
+      }
+
+      showToast('Recovered your previous work', 'info');
+    } catch {
+      // Corrupted data — ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // On state change: debounce-save to localStorage
+  useEffect(() => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+
+    autosaveTimerRef.current = setTimeout(() => {
+      // Only save if there's a meaningful state (a layout has been selected)
+      if (!state.selectedLayoutId) {
+        localStorage.removeItem(AUTOSAVE_KEY);
+        return;
+      }
+      try {
+        const toSave = {
+          selectedLayoutId: state.selectedLayoutId,
+          aspectRatio: state.aspectRatio,
+          background: state.background,
+          textOverlays: state.textOverlays,
+          shapeOverlays: state.shapeOverlays,
+          currentSlide: state.currentSlide,
+          customLayout: customLayout ?? null,
+        };
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(toSave));
+      } catch {
+        // localStorage full or unavailable — silently ignore
+      }
+    }, AUTOSAVE_DEBOUNCE_MS);
+
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+  }, [
+    state.selectedLayoutId,
+    state.aspectRatio,
+    state.background,
+    state.textOverlays,
+    state.shapeOverlays,
+    state.currentSlide,
+    customLayout,
+  ]);
+
   /** Actually run the export (called after gate check passes) */
   const doExport = useCallback(async () => {
     if (!selectedLayout || !allSlotsFilled) return;
@@ -175,6 +266,73 @@ const App: React.FC = () => {
       setExportProgress(null);
     }
   }, [selectedLayout, allSlotsFilled, state.images, state.aspectRatio, state.background, state.textOverlays, state.shapeOverlays, setExporting, consumeExport, exportScale, showToast]);
+
+  /** Share or copy the current slide */
+  const [isSharing, setIsSharing] = useState(false);
+
+  const handleShare = useCallback(async () => {
+    if (!selectedLayout || !allSlotsFilled) return;
+    setIsSharing(true);
+    try {
+      const blob = await renderSingleSlide(
+        state.currentSlide,
+        selectedLayout,
+        state.images,
+        state.aspectRatio,
+        exportScale,
+        state.background,
+        state.textOverlays,
+        state.shapeOverlays,
+      );
+
+      // Mobile: Web Share API with file
+      if (isMobile && navigator.share) {
+        const file = new File([blob], `slide-${state.currentSlide + 1}.png`, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Carousel Slide',
+            text: `Slide ${state.currentSlide + 1}`,
+          });
+          showToast('Shared successfully', 'success');
+        } else {
+          // Fallback: download the file
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `slide-${state.currentSlide + 1}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast('Downloaded slide (sharing not supported)', 'info');
+        }
+      }
+      // Desktop: Clipboard API
+      else if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob }),
+        ]);
+        showToast('Slide copied to clipboard', 'success');
+      }
+      // Final fallback: download
+      else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `slide-${state.currentSlide + 1}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Downloaded slide', 'info');
+      }
+    } catch (err) {
+      // User may have cancelled the share sheet — that's OK
+      if (err instanceof Error && err.name !== 'AbortError') {
+        console.error('Share failed:', err);
+        showToast('Share failed. Please try again.');
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  }, [selectedLayout, allSlotsFilled, state.currentSlide, state.images, state.aspectRatio, state.background, state.textOverlays, state.shapeOverlays, exportScale, isMobile, showToast]);
 
   /** User clicks "Export Carousel" — check gate first */
   const handleExport = useCallback(() => {
@@ -322,7 +480,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleBatchFiles = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (!files || files.length === 0 || !selectedLayout) return;
 
@@ -337,7 +495,11 @@ const App: React.FC = () => {
       }
 
       if (validFiles.length > 0) {
-        batchSetImages(validFiles, selectedLayout.slots.map((s) => s.id));
+        // Auto-compress all images before passing to the editor
+        const compressed = await Promise.all(
+          validFiles.map((f) => compressImage(f).catch(() => f))
+        );
+        batchSetImages(compressed, selectedLayout.slots.map((s) => s.id));
       }
       e.target.value = '';
     },
@@ -450,6 +612,23 @@ const App: React.FC = () => {
               {remainingExports === 1 ? 'export' : 'exports'}
             </span>
           </div>
+          <button
+            className="app__dark-toggle"
+            onClick={toggleDarkMode}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {isDark ? (
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <circle cx="9" cy="9" r="3.5" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M9 2V3.5M9 14.5V16M16 9H14.5M3.5 9H2M13.95 4.05L12.89 5.11M5.11 12.89L4.05 13.95M13.95 13.95L12.89 12.89M5.11 5.11L4.05 4.05" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M15.09 10.64A7 7 0 017.36 2.91 7 7 0 1015.09 10.64z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </button>
         </div>
         <p className="app__subtitle">
           Create stunning Instagram carousel posts with seamless layouts
@@ -720,6 +899,32 @@ const App: React.FC = () => {
                   )}
 
                   <button
+                    className="app__btn app__btn--secondary app__btn--compact"
+                    onClick={handleShare}
+                    disabled={!allSlotsFilled || isSharing}
+                    title={isMobile ? 'Share current slide' : 'Copy current slide to clipboard'}
+                  >
+                    {isSharing ? (
+                      'Sharing...'
+                    ) : (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                          {isMobile ? (
+                            <path d="M4 9V13H12V9M8 2V10M8 2L5 5M8 2L11 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          ) : (
+                            <>
+                              <rect x="2" y="2" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+                              <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+                              <path d="M8.5 4.75H10.25C10.94 4.75 11.5 5.31 11.5 6V7.5M7.5 11.25H5.75C5.06 11.25 4.5 10.69 4.5 10V8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                            </>
+                          )}
+                        </svg>
+                        {isMobile ? 'Share' : 'Copy'}
+                      </>
+                    )}
+                  </button>
+
+                  <button
                     className="app__btn app__btn--primary"
                     onClick={handleExport}
                     disabled={!allSlotsFilled || state.isExporting}
@@ -772,6 +977,8 @@ const App: React.FC = () => {
               onRemoveShapeOverlay={removeShapeOverlay}
               onBringForward={bringForward}
               onSendBackward={sendBackward}
+              onUpdateImageOffsetNoHistory={updateImageOffsetNoHistory}
+              onPushImageHistorySnapshot={pushHistorySnapshot}
             />
           ) : (
             <div className="app__empty">
@@ -858,6 +1065,11 @@ const App: React.FC = () => {
           <a href="#/terms" onClick={() => navigateTo('#/terms')}>Terms of Service</a>
         </nav>
       </footer>
+
+      {/* -- Onboarding (first visit) ───────────────────── */}
+      {showOnboarding && (
+        <Onboarding onComplete={() => setShowOnboarding(false)} />
+      )}
 
       {/* -- Toast Notifications ─────────────────────── */}
       <ToastContainer />

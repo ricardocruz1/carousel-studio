@@ -1,27 +1,35 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { TextOverlay, CarouselLayout } from '../types';
+import type { TextOverlay, ShapeOverlay, CarouselLayout } from '../types';
 import { FONT_OPTIONS, FONT_SIZE_OPTIONS } from '../types';
 import { loadAllFonts } from '../utils/fontLoader';
+import type { SnapGuide } from '../utils/snap';
+import { snapTextPosition } from '../utils/snap';
 import './TextOverlayLayer.css';
 
 interface TextOverlayLayerProps {
   overlays: TextOverlay[];
+  shapeOverlays: ShapeOverlay[];
   layout: CarouselLayout;
+  currentSlide: number;
   selectedId: string | null;
   onSelectedIdChange: (id: string | null) => void;
   onUpdateNoHistory: (id: string, updates: Partial<TextOverlay>) => void;
   onPushSnapshot: () => void;
   onRemove: (id: string) => void;
+  onSnapGuidesChange: (guides: SnapGuide[]) => void;
 }
 
 export const TextOverlayLayer: React.FC<TextOverlayLayerProps> = ({
   overlays,
+  shapeOverlays,
   layout,
+  currentSlide,
   selectedId,
   onSelectedIdChange,
   onUpdateNoHistory,
   onPushSnapshot,
   onRemove,
+  onSnapGuidesChange,
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -44,7 +52,10 @@ export const TextOverlayLayer: React.FC<TextOverlayLayerProps> = ({
         <TextOverlayItem
           key={overlay.id}
           overlay={overlay}
+          allTextOverlays={overlays}
+          shapeOverlays={shapeOverlays}
           layout={layout}
+          currentSlide={currentSlide}
           isSelected={selectedId === overlay.id}
           isEditing={editingId === overlay.id}
           onSelect={() => onSelectedIdChange(overlay.id)}
@@ -56,6 +67,7 @@ export const TextOverlayLayer: React.FC<TextOverlayLayerProps> = ({
           onUpdateNoHistory={onUpdateNoHistory}
           onPushSnapshot={onPushSnapshot}
           onRemove={onRemove}
+          onSnapGuidesChange={onSnapGuidesChange}
         />
       ))}
     </div>
@@ -66,7 +78,10 @@ export const TextOverlayLayer: React.FC<TextOverlayLayerProps> = ({
 
 interface TextOverlayItemProps {
   overlay: TextOverlay;
+  allTextOverlays: TextOverlay[];
+  shapeOverlays: ShapeOverlay[];
   layout: CarouselLayout;
+  currentSlide: number;
   isSelected: boolean;
   isEditing: boolean;
   onSelect: () => void;
@@ -75,11 +90,15 @@ interface TextOverlayItemProps {
   onUpdateNoHistory: (id: string, updates: Partial<TextOverlay>) => void;
   onPushSnapshot: () => void;
   onRemove: (id: string) => void;
+  onSnapGuidesChange: (guides: SnapGuide[]) => void;
 }
 
 const TextOverlayItem: React.FC<TextOverlayItemProps> = ({
   overlay,
+  allTextOverlays,
+  shapeOverlays,
   layout,
+  currentSlide,
   isSelected,
   isEditing,
   onSelect,
@@ -88,6 +107,7 @@ const TextOverlayItem: React.FC<TextOverlayItemProps> = ({
   onUpdateNoHistory,
   onPushSnapshot,
   onRemove,
+  onSnapGuidesChange,
 }) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -145,8 +165,27 @@ const TextOverlayItem: React.FC<TextOverlayItemProps> = ({
       const slideWidthPx = rect.width / layout.slideCount;
       const slideHeightPx = rect.height;
 
-      const newX = Math.max(0, Math.min(100, dragRef.current.origX + (dx / slideWidthPx) * 100));
-      const newY = Math.max(0, Math.min(100, dragRef.current.origY + (dy / slideHeightPx) * 100));
+      const rawX = Math.max(0, Math.min(100, dragRef.current.origX + (dx / slideWidthPx) * 100));
+      const rawY = Math.max(0, Math.min(100, dragRef.current.origY + (dy / slideHeightPx) * 100));
+
+      // Measure text element dimensions as % of slide for center-based snapping
+      let textWidthPct: number | undefined;
+      let textHeightPct: number | undefined;
+      const el = wrapperRef.current;
+      if (el && slideWidthPx > 0 && slideHeightPx > 0) {
+        const elRect = el.getBoundingClientRect();
+        textWidthPct = (elRect.width / slideWidthPx) * 100;
+        textHeightPct = (elRect.height / slideHeightPx) * 100;
+      }
+
+      // Apply snap with text dimensions for center-based alignment
+      const snapResult = snapTextPosition(rawX, rawY, allTextOverlays, shapeOverlays, currentSlide, overlay.id, textWidthPct, textHeightPct);
+
+      // Clamp snapped values
+      const newX = Math.max(0, Math.min(100, snapResult.x));
+      const newY = Math.max(0, Math.min(100, snapResult.y));
+
+      onSnapGuidesChange(snapResult.guides);
 
       // Use no-history update during drag — only the initial snapshot counts
       onUpdateNoHistory(overlay.id, { x: newX, y: newY });
@@ -154,13 +193,14 @@ const TextOverlayItem: React.FC<TextOverlayItemProps> = ({
 
     const handlePointerUp = () => {
       dragRef.current = null;
+      onSnapGuidesChange([]);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };
 
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
-  }, [isEditing, isSelected, overlay.id, overlay.x, overlay.y, layout.slideCount, onSelect, onUpdateNoHistory, onPushSnapshot]);
+  }, [isEditing, isSelected, overlay.id, overlay.x, overlay.y, layout.slideCount, onSelect, onUpdateNoHistory, onPushSnapshot, allTextOverlays, shapeOverlays, currentSlide, onSnapGuidesChange]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

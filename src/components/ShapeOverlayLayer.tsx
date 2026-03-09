@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { ShapeOverlay, CarouselLayout, ShapeType, AspectRatio } from '../types';
+import type { ShapeOverlay, TextOverlay, CarouselLayout, ShapeType, AspectRatio } from '../types';
 import { ASPECT_RATIOS } from '../types';
+import type { SnapGuide } from '../utils/snap';
+import { snapShapePosition } from '../utils/snap';
 import './ShapeOverlayLayer.css';
 
 // ─── Types ─────────────────────────────────────────────────
@@ -23,24 +25,30 @@ function shapeFillCSS(shape: ShapeOverlay): string {
 
 interface ShapeOverlayLayerProps {
   overlays: ShapeOverlay[];
+  textOverlays: TextOverlay[];
   layout: CarouselLayout;
   aspectRatio: AspectRatio;
+  currentSlide: number;
   selectedId: string | null;
   onSelectedIdChange: (id: string | null) => void;
   onUpdateNoHistory: (id: string, updates: Partial<ShapeOverlay>) => void;
   onPushSnapshot: () => void;
   onRemove: (id: string) => void;
+  onSnapGuidesChange: (guides: SnapGuide[]) => void;
 }
 
 export const ShapeOverlayLayer: React.FC<ShapeOverlayLayerProps> = ({
   overlays,
+  textOverlays,
   layout,
   aspectRatio,
+  currentSlide,
   selectedId,
   onSelectedIdChange,
   onUpdateNoHistory,
   onPushSnapshot,
   onRemove,
+  onSnapGuidesChange,
 }) => {
   const layerRef = useRef<HTMLDivElement>(null);
   const handleLayerClick = useCallback(
@@ -58,13 +66,17 @@ export const ShapeOverlayLayer: React.FC<ShapeOverlayLayerProps> = ({
         <ShapeOverlayItem
           key={shape.id}
           shape={shape}
+          allShapeOverlays={overlays}
+          textOverlays={textOverlays}
           layout={layout}
           aspectRatio={aspectRatio}
+          currentSlide={currentSlide}
           isSelected={selectedId === shape.id}
           onSelect={() => onSelectedIdChange(shape.id)}
           onUpdateNoHistory={onUpdateNoHistory}
           onPushSnapshot={onPushSnapshot}
           onRemove={onRemove}
+          onSnapGuidesChange={onSnapGuidesChange}
         />
       ))}
     </div>
@@ -75,24 +87,32 @@ export const ShapeOverlayLayer: React.FC<ShapeOverlayLayerProps> = ({
 
 interface ShapeOverlayItemProps {
   shape: ShapeOverlay;
+  allShapeOverlays: ShapeOverlay[];
+  textOverlays: TextOverlay[];
   layout: CarouselLayout;
   aspectRatio: AspectRatio;
+  currentSlide: number;
   isSelected: boolean;
   onSelect: () => void;
   onUpdateNoHistory: (id: string, updates: Partial<ShapeOverlay>) => void;
   onPushSnapshot: () => void;
   onRemove: (id: string) => void;
+  onSnapGuidesChange: (guides: SnapGuide[]) => void;
 }
 
 const ShapeOverlayItem: React.FC<ShapeOverlayItemProps> = ({
   shape,
+  allShapeOverlays,
+  textOverlays,
   layout,
   aspectRatio,
+  currentSlide,
   isSelected,
   onSelect,
   onUpdateNoHistory,
   onPushSnapshot,
   onRemove,
+  onSnapGuidesChange,
 }) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
@@ -151,14 +171,24 @@ const ShapeOverlayItem: React.FC<ShapeOverlayItemProps> = ({
 
         // For constrained shapes, derive the effective height% for bounding
         const effectiveHeight = isConstrained ? shape.width * slideAR : shape.height;
-        const newX = Math.max(0, Math.min(100 - shape.width, dragRef.current.origX + (dx / slideWidthPx) * 100));
-        const newY = Math.max(0, Math.min(100 - effectiveHeight, dragRef.current.origY + (dy / slideHeightPx) * 100));
+        const rawX = Math.max(0, Math.min(100 - shape.width, dragRef.current.origX + (dx / slideWidthPx) * 100));
+        const rawY = Math.max(0, Math.min(100 - effectiveHeight, dragRef.current.origY + (dy / slideHeightPx) * 100));
+
+        // Apply snap
+        const snapResult = snapShapePosition(rawX, rawY, shape.width, effectiveHeight, textOverlays, allShapeOverlays, currentSlide, shape.id);
+
+        // Clamp snapped values
+        const newX = Math.max(0, Math.min(100 - shape.width, snapResult.x));
+        const newY = Math.max(0, Math.min(100 - effectiveHeight, snapResult.y));
+
+        onSnapGuidesChange(snapResult.guides);
 
         onUpdateNoHistory(shape.id, { x: newX, y: newY });
       };
 
       const handlePointerUp = () => {
         dragRef.current = null;
+        onSnapGuidesChange([]);
         window.removeEventListener('pointermove', handlePointerMove);
         window.removeEventListener('pointerup', handlePointerUp);
       };
@@ -166,7 +196,7 @@ const ShapeOverlayItem: React.FC<ShapeOverlayItemProps> = ({
       window.addEventListener('pointermove', handlePointerMove);
       window.addEventListener('pointerup', handlePointerUp);
     },
-    [shape.id, shape.x, shape.y, shape.width, shape.height, layout.slideCount, isConstrained, slideAR, onSelect, onUpdateNoHistory, onPushSnapshot]
+    [shape.id, shape.x, shape.y, shape.width, shape.height, layout.slideCount, isConstrained, slideAR, onSelect, onUpdateNoHistory, onPushSnapshot, textOverlays, allShapeOverlays, currentSlide, onSnapGuidesChange]
   );
 
   // ─── Resize handles ─────────────────────────

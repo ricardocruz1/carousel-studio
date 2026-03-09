@@ -117,8 +117,8 @@ export function useEditorState() {
       slotId,
       file,
       url,
-      offsetX: 0,
-      offsetY: 0,
+      offsetX: 50,
+      offsetY: 50,
       scale: 1,
     };
     updateWithHistory((prev) => ({
@@ -150,14 +150,38 @@ export function useEditorState() {
           slotId: emptySlotIds[i],
           file: files[i],
           url,
-          offsetX: 0,
-          offsetY: 0,
+          offsetX: 50,
+          offsetY: 50,
           scale: 1,
         };
       }
       return { ...prev, images: newImages };
     });
   }, [updateWithHistory, trackBlobUrl]);
+
+  // ─── Image offset (pan/zoom) operations ───────────────────────────────
+
+  const updateImageOffset = useCallback((slotId: string, updates: { offsetX?: number; offsetY?: number; scale?: number }) => {
+    updateWithHistory((prev) => {
+      const img = prev.images[slotId];
+      if (!img) return prev;
+      return {
+        ...prev,
+        images: { ...prev.images, [slotId]: { ...img, ...updates } },
+      };
+    });
+  }, [updateWithHistory]);
+
+  const updateImageOffsetNoHistory = useCallback((slotId: string, updates: { offsetX?: number; offsetY?: number; scale?: number }) => {
+    setState((prev) => {
+      const img = prev.images[slotId];
+      if (!img) return prev;
+      return {
+        ...prev,
+        images: { ...prev.images, [slotId]: { ...img, ...updates } },
+      };
+    });
+  }, []);
 
   // ─── Slide navigation (no history) ──────────────────────────────
 
@@ -364,6 +388,8 @@ export function useEditorState() {
     setImage,
     removeImage,
     batchSetImages,
+    updateImageOffset,
+    updateImageOffsetNoHistory,
     setCurrentSlide,
     setExporting,
     setAspectRatio,

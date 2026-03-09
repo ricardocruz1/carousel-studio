@@ -10,7 +10,7 @@ import type {
 } from '../types';
 import { DEFAULT_BACKGROUND } from '../types';
 
-const PROJECT_VERSION = 2;
+const PROJECT_VERSION = 3;
 
 interface ProjectJson {
   version: number;
@@ -22,6 +22,8 @@ interface ProjectJson {
   shapeOverlays?: ShapeOverlay[];
   /** Maps slotId → filename in the images/ folder */
   imageSlots: Record<string, string>;
+  /** Maps slotId → { offsetX, offsetY, scale } for image positioning (v3+) */
+  imageOffsets?: Record<string, { offsetX: number; offsetY: number; scale: number }>;
 }
 
 /**
@@ -36,6 +38,7 @@ export async function saveProject(
   const imagesFolder = zip.folder('images')!;
 
   const imageSlots: Record<string, string> = {};
+  const imageOffsets: Record<string, { offsetX: number; offsetY: number; scale: number }> = {};
 
   // Add each placed image to the zip
   for (const [slotId, placed] of Object.entries(state.images)) {
@@ -43,6 +46,11 @@ export async function saveProject(
     const filename = `${slotId}.${ext}`;
     imageSlots[slotId] = filename;
     imagesFolder.file(filename, placed.file);
+    imageOffsets[slotId] = {
+      offsetX: placed.offsetX,
+      offsetY: placed.offsetY,
+      scale: placed.scale,
+    };
   }
 
   const projectJson: ProjectJson = {
@@ -54,6 +62,7 @@ export async function saveProject(
     textOverlays: state.textOverlays,
     shapeOverlays: state.shapeOverlays,
     imageSlots,
+    imageOffsets,
   };
 
   zip.file('project.json', JSON.stringify(projectJson, null, 2));
@@ -118,9 +127,10 @@ export async function loadProject(file: File): Promise<{
       slotId,
       file: imageFile,
       url,
-      offsetX: 0,
-      offsetY: 0,
-      scale: 1,
+      // Restore saved offsets if available (v3+), otherwise default to centered (50,50)
+      offsetX: project.imageOffsets?.[slotId]?.offsetX ?? 50,
+      offsetY: project.imageOffsets?.[slotId]?.offsetY ?? 50,
+      scale: project.imageOffsets?.[slotId]?.scale ?? 1,
     };
   }
 
