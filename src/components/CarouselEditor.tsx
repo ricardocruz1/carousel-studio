@@ -1,16 +1,39 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { CarouselLayout, PlacedImage, AspectRatio } from '../types';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import type { CarouselLayout, PlacedImage, AspectRatio, TextOverlay, ShapeOverlay, BackgroundConfig } from '../types';
 import { ASPECT_RATIOS } from '../types';
+import { TextOverlayLayer, FloatingToolbar } from './TextOverlayLayer';
+import { ShapeOverlayLayer, ShapeToolbar } from './ShapeOverlayLayer';
 import './CarouselEditor.css';
+
+/** Build a CSS background string from a BackgroundConfig. */
+function bgToCSS(bg: BackgroundConfig): string {
+  if (bg.type === 'gradient') {
+    return `linear-gradient(${bg.gradientAngle}deg, ${bg.gradientStart}, ${bg.gradientEnd})`;
+  }
+  return bg.color;
+}
 
 interface CarouselEditorProps {
   layout: CarouselLayout;
   images: Record<string, PlacedImage>;
   currentSlide: number;
   aspectRatio: AspectRatio;
+  background: BackgroundConfig;
+  textOverlays: TextOverlay[];
+  shapeOverlays: ShapeOverlay[];
   onSetImage: (slotId: string, file: File) => void;
   onRemoveImage: (slotId: string) => void;
   onSetCurrentSlide: (slide: number) => void;
+  onUpdateTextOverlay: (id: string, updates: Partial<TextOverlay>) => void;
+  onUpdateTextOverlayNoHistory: (id: string, updates: Partial<TextOverlay>) => void;
+  onPushHistorySnapshot: () => void;
+  onRemoveTextOverlay: (id: string) => void;
+  onUpdateShapeOverlay: (id: string, updates: Partial<ShapeOverlay>) => void;
+  onUpdateShapeOverlayNoHistory: (id: string, updates: Partial<ShapeOverlay>) => void;
+  onRemoveShapeOverlay: (id: string) => void;
+  onBringForward: (id: string, kind: 'text' | 'shape') => void;
+  onSendBackward: (id: string, kind: 'text' | 'shape') => void;
 }
 
 export const CarouselEditor: React.FC<CarouselEditorProps> = ({
@@ -18,16 +41,94 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
   images,
   currentSlide,
   aspectRatio,
+  background,
+  textOverlays,
+  shapeOverlays,
   onSetImage,
   onRemoveImage,
   onSetCurrentSlide,
+  onUpdateTextOverlay,
+  onUpdateTextOverlayNoHistory,
+  onPushHistorySnapshot,
+  onRemoveTextOverlay,
+  onUpdateShapeOverlay,
+  onUpdateShapeOverlayNoHistory,
+  onRemoveShapeOverlay,
+  onBringForward,
+  onSendBackward,
 }) => {
   const slideOffset = -(currentSlide * (100 / layout.slideCount));
   const config = ASPECT_RATIOS[aspectRatio];
-  // Compute maxWidth so that the viewport never exceeds 70vh in height
-  // while maintaining the correct aspect ratio.
-  // maxWidth = min(100%, 70vh * (width / height))
   const ratioFactor = config.width / config.height;
+  const bgCSS = bgToCSS(background);
+
+  // Unified selection: either a text overlay or a shape overlay is selected
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [selectedKind, setSelectedKind] = useState<'text' | 'shape' | null>(null);
+
+  const selectedTextOverlay = selectedKind === 'text' && selectedOverlayId
+    ? textOverlays.find((o) => o.id === selectedOverlayId) ?? null
+    : null;
+  const selectedShapeOverlay = selectedKind === 'shape' && selectedOverlayId
+    ? shapeOverlays.find((o) => o.id === selectedOverlayId) ?? null
+    : null;
+
+  // Handlers that enforce mutual exclusion
+  const handleSelectText = useCallback((id: string | null) => {
+    setSelectedOverlayId(id);
+    setSelectedKind(id ? 'text' : null);
+  }, []);
+
+  const handleSelectShape = useCallback((id: string | null) => {
+    setSelectedOverlayId(id);
+    setSelectedKind(id ? 'shape' : null);
+  }, []);
+
+  // Toolbar position — computed from the selected overlay element's bounding rect
+  const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number; below: boolean } | null>(null);
+
+  // Deselect when changing slides
+  useEffect(() => {
+    setSelectedOverlayId(null);
+    setSelectedKind(null);
+  }, [currentSlide]);
+
+  // Keep toolbar position in sync with selected overlay element
+  useLayoutEffect(() => {
+    if (!selectedOverlayId) {
+      setToolbarPos(null);
+      return;
+    }
+
+    const updatePos = () => {
+      // Look for either text or shape overlay element
+      const el = (
+        document.querySelector(`[data-overlay-id="${selectedOverlayId}"]`) ||
+        document.querySelector(`[data-shape-id="${selectedOverlayId}"]`)
+      ) as HTMLElement | null;
+      if (!el) {
+        setToolbarPos(null);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const spaceAbove = rect.top;
+      const below = spaceAbove < 60;
+      setToolbarPos({
+        top: below ? rect.bottom + 8 : rect.top - 8,
+        left: rect.left + rect.width / 2,
+        below,
+      });
+    };
+
+    updatePos();
+
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [selectedOverlayId, textOverlays, shapeOverlays]);
 
   return (
     <div className="carousel-editor">
@@ -45,7 +146,7 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
             transform: `translateX(${slideOffset}%)`,
           }}
         >
-          {/* Slide boundaries (visual guides) */}
+          {/* Slide backgrounds */}
           {Array.from({ length: layout.slideCount }, (_, i) => (
             <div
               key={`slide-bg-${i}`}
@@ -53,6 +154,7 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
               style={{
                 left: `${(i / layout.slideCount) * 100}%`,
                 width: `${100 / layout.slideCount}%`,
+                background: bgCSS,
               }}
             >
               {i > 0 && <div className="carousel-editor__slide-divider" />}
@@ -74,8 +176,79 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
               onRemoveImage={onRemoveImage}
             />
           ))}
+
+          {/* Text overlay layer */}
+          <TextOverlayLayer
+            overlays={textOverlays}
+            layout={layout}
+            selectedId={selectedKind === 'text' ? selectedOverlayId : null}
+            onSelectedIdChange={handleSelectText}
+            onUpdateNoHistory={onUpdateTextOverlayNoHistory}
+            onPushSnapshot={onPushHistorySnapshot}
+            onRemove={onRemoveTextOverlay}
+          />
+
+          {/* Shape overlay layer */}
+          <ShapeOverlayLayer
+            overlays={shapeOverlays}
+            layout={layout}
+            aspectRatio={aspectRatio}
+            selectedId={selectedKind === 'shape' ? selectedOverlayId : null}
+            onSelectedIdChange={handleSelectShape}
+            onUpdateNoHistory={onUpdateShapeOverlayNoHistory}
+            onPushSnapshot={onPushHistorySnapshot}
+            onRemove={onRemoveShapeOverlay}
+          />
         </div>
       </div>
+
+      {/* Floating toolbar — portal to body, positioned above the selected overlay */}
+      {selectedTextOverlay && toolbarPos && createPortal(
+        <div
+          className="text-toolbar-portal"
+          style={{
+            position: 'fixed',
+            top: `${toolbarPos.top}px`,
+            left: `${toolbarPos.left}px`,
+            transform: toolbarPos.below ? 'translateX(-50%)' : 'translate(-50%, -100%)',
+            zIndex: 10000,
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <FloatingToolbar
+            overlay={selectedTextOverlay}
+            onUpdate={onUpdateTextOverlay}
+            onRemove={onRemoveTextOverlay}
+            onBringForward={onBringForward}
+            onSendBackward={onSendBackward}
+          />
+        </div>,
+        document.body,
+      )}
+
+      {/* Shape toolbar — portal to body */}
+      {selectedShapeOverlay && toolbarPos && createPortal(
+        <div
+          className="text-toolbar-portal"
+          style={{
+            position: 'fixed',
+            top: `${toolbarPos.top}px`,
+            left: `${toolbarPos.left}px`,
+            transform: toolbarPos.below ? 'translateX(-50%)' : 'translate(-50%, -100%)',
+            zIndex: 10000,
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <ShapeToolbar
+            shape={selectedShapeOverlay}
+            onUpdate={onUpdateShapeOverlay}
+            onRemove={onRemoveShapeOverlay}
+            onBringForward={onBringForward}
+            onSendBackward={onSendBackward}
+          />
+        </div>,
+        document.body,
+      )}
 
       {/* Slide navigation */}
       <div className="carousel-editor__nav">
@@ -163,14 +336,13 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
         return;
       }
 
-      // Validate file type. Allow empty MIME (e.g. HEIC on macOS may report empty)
-      // but reject files that have a non-image MIME type.
+      // Validate file type
       if (file.type && !file.type.startsWith('image/')) {
         alert('Please select an image file (JPEG, PNG, WebP, etc.).');
         return;
       }
 
-      // Reject SVG files — they can contain embedded scripts
+      // Reject SVG files
       if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
         alert('SVG files are not supported. Please use JPEG, PNG, or WebP.');
         return;
@@ -191,7 +363,6 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) handleFile(file);
-      // Reset input so the same file can be selected again
       e.target.value = '';
     },
     [handleFile]

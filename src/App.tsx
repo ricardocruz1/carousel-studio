@@ -1,8 +1,9 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { LayoutPicker } from './components/LayoutPicker';
 import { CarouselEditor } from './components/CarouselEditor';
 import { CustomLayoutBuilder } from './components/CustomLayoutBuilder';
 import { AdGateModal } from './components/AdGateModal';
+import { BackgroundPicker } from './components/BackgroundPicker';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { TermsOfService } from './components/TermsOfService';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
@@ -11,9 +12,15 @@ import { useExportGate } from './hooks/useExportGate';
 import { useCookieConsent } from './hooks/useCookieConsent';
 import { getLayoutById } from './layouts';
 import { exportCarousel, MAX_CANVAS_PIXELS } from './utils/export';
-import type { CarouselLayout } from './types';
-import { ASPECT_RATIOS, ASPECT_RATIO_OPTIONS, INSTAGRAM_WIDTH } from './types';
+import { saveProject, loadProject } from './utils/project';
+import type { CarouselLayout, TextOverlay, ShapeOverlay, ShapeType } from './types';
+import { ASPECT_RATIOS, ASPECT_RATIO_OPTIONS, INSTAGRAM_WIDTH, FONT_OPTIONS } from './types';
 import './App.css';
+
+let _overlayIdCounter = 0;
+function nextOverlayId(prefix: string = 'text'): string {
+  return `${prefix}-${Date.now()}-${++_overlayIdCounter}`;
+}
 
 const App: React.FC = () => {
   // Simple hash-based routing for legal pages
@@ -40,10 +47,28 @@ const App: React.FC = () => {
     selectLayout,
     setImage,
     removeImage,
+    batchSetImages,
     setCurrentSlide,
     setExporting,
     setAspectRatio,
     clearAll,
+    addTextOverlay,
+    updateTextOverlay,
+    updateTextOverlayNoHistory,
+    pushHistorySnapshot,
+    removeTextOverlay,
+    addShapeOverlay,
+    updateShapeOverlay,
+    updateShapeOverlayNoHistory,
+    removeShapeOverlay,
+    bringForward,
+    sendBackward,
+    setBackground,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    restoreState,
   } = useEditorState();
 
   const { canExport, credits, consumeExport, grantAdCredits, freeExports, exportsPerAd } = useExportGate();
@@ -54,6 +79,10 @@ const App: React.FC = () => {
   const [showAdGate, setShowAdGate] = useState(false);
   const [showNoCredits, setShowNoCredits] = useState(false);
   const [exportScale, setExportScale] = useState<number>(1);
+
+  // Refs for hidden file inputs
+  const batchInputRef = useRef<HTMLInputElement>(null);
+  const loadInputRef = useRef<HTMLInputElement>(null);
 
   // Resolve the active layout: either a predefined one or the custom one
   const selectedLayout = state.selectedLayoutId === 'custom'
@@ -81,6 +110,27 @@ const App: React.FC = () => {
       })()
     : false;
 
+  // ─── Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z ────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        // Don't intercept if user is editing a text input/textarea/contentEditable
+        const tag = (e.target as HTMLElement).tagName;
+        const isEditable = (e.target as HTMLElement).isContentEditable;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || isEditable) return;
+
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
+
   /** Actually run the export (called after gate check passes) */
   const doExport = useCallback(async () => {
     if (!selectedLayout || !allSlotsFilled) return;
@@ -89,9 +139,16 @@ const App: React.FC = () => {
     setExportProgress(0);
 
     try {
-      await exportCarousel(selectedLayout, state.images, state.aspectRatio, (progress) => {
-        setExportProgress(progress);
-      }, exportScale);
+      await exportCarousel(
+        selectedLayout,
+        state.images,
+        state.aspectRatio,
+        (progress) => setExportProgress(progress),
+        exportScale,
+        state.background,
+        state.textOverlays,
+        state.shapeOverlays,
+      );
       consumeExport();
     } catch (error) {
       console.error('Export failed:', error);
@@ -100,7 +157,7 @@ const App: React.FC = () => {
       setExporting(false);
       setExportProgress(null);
     }
-  }, [selectedLayout, allSlotsFilled, state.images, state.aspectRatio, setExporting, consumeExport, exportScale]);
+  }, [selectedLayout, allSlotsFilled, state.images, state.aspectRatio, state.background, state.textOverlays, state.shapeOverlays, setExporting, consumeExport, exportScale]);
 
   /** User clicks "Export Carousel" — check gate first */
   const handleExport = useCallback(() => {
@@ -156,6 +213,163 @@ const App: React.FC = () => {
     const val = Math.min(3, Math.max(1, Math.round(Number(e.target.value))));
     setExportScale(val);
   }, []);
+
+  // ─── Add Text Overlay ──────────────────────────────────
+  const handleAddText = useCallback(() => {
+    if (!selectedLayout) return;
+    // Compute the next z-index (above all existing overlays)
+    const allZ = [
+      ...state.textOverlays.map((o) => o.zIndex ?? 0),
+      ...state.shapeOverlays.map((o) => o.zIndex ?? 0),
+    ];
+    const nextZ = allZ.length > 0 ? Math.max(...allZ) + 1 : 1;
+
+    const overlay: TextOverlay = {
+      id: nextOverlayId('text'),
+      slideIndex: state.currentSlide,
+      text: 'Text',
+      x: 10,
+      y: 10,
+      fontSize: 48,
+      fontFamily: FONT_OPTIONS[0].value,
+      color: '#ffffff',
+      fontWeight: 700,
+      fontStyle: 'normal',
+      textDecoration: 'none',
+      textAlign: 'left',
+      opacity: 1,
+      backgroundColor: '',
+      zIndex: nextZ,
+    };
+    addTextOverlay(overlay);
+  }, [selectedLayout, state.currentSlide, state.textOverlays, state.shapeOverlays, addTextOverlay]);
+
+  // ─── Add Shape Overlay ─────────────────────────────────
+  const [showShapeDropdown, setShowShapeDropdown] = useState(false);
+  const shapeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close shape dropdown when clicking outside
+  useEffect(() => {
+    if (!showShapeDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (shapeDropdownRef.current && !shapeDropdownRef.current.contains(e.target as Node)) {
+        setShowShapeDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showShapeDropdown]);
+
+  const handleAddShape = useCallback((shapeType: ShapeType) => {
+    if (!selectedLayout) return;
+    setShowShapeDropdown(false);
+
+    const allZ = [
+      ...state.textOverlays.map((o) => o.zIndex ?? 0),
+      ...state.shapeOverlays.map((o) => o.zIndex ?? 0),
+    ];
+    const nextZ = allZ.length > 0 ? Math.max(...allZ) + 1 : 1;
+
+    // Default sizes per shape type
+    // For constrained shapes (square/circle), height = width * slideAR to be visually 1:1
+    const arConfig = ASPECT_RATIOS[state.aspectRatio];
+    const slideAR = arConfig.width / arConfig.height;
+    let w = 25, h = 15;
+    if (shapeType === 'square' || shapeType === 'circle') { w = 15; h = 15 * slideAR; }
+    else if (shapeType === 'triangle') { w = 20; h = 20; }
+
+    const shape: ShapeOverlay = {
+      id: nextOverlayId('shape'),
+      slideIndex: state.currentSlide,
+      type: shapeType,
+      x: 10,
+      y: 20,
+      width: w,
+      height: h,
+      fillType: 'solid',
+      fillColor: '#6c5ce7',
+      gradientStart: '#6c5ce7',
+      gradientEnd: '#a29bfe',
+      gradientAngle: 135,
+      borderColor: '#ffffff',
+      borderWidth: 0,
+      opacity: 1,
+      zIndex: nextZ,
+    };
+    addShapeOverlay(shape);
+  }, [selectedLayout, state.currentSlide, state.textOverlays, state.shapeOverlays, addShapeOverlay]);
+
+  // ─── Batch Upload ──────────────────────────────────────
+  const handleBatchUpload = useCallback(() => {
+    batchInputRef.current?.click();
+  }, []);
+
+  const handleBatchFiles = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0 || !selectedLayout) return;
+
+      // Validate each file
+      const validFiles: File[] = [];
+      const MAX_FILE_SIZE = 50 * 1024 * 1024;
+      for (const f of Array.from(files)) {
+        if (f.size > MAX_FILE_SIZE) continue;
+        if (f.type && !f.type.startsWith('image/')) continue;
+        if (f.type === 'image/svg+xml' || f.name.toLowerCase().endsWith('.svg')) continue;
+        validFiles.push(f);
+      }
+
+      if (validFiles.length > 0) {
+        batchSetImages(validFiles, selectedLayout.slots.map((s) => s.id));
+      }
+      e.target.value = '';
+    },
+    [selectedLayout, batchSetImages]
+  );
+
+  // ─── Save / Load Project ───────────────────────────────
+  const handleSaveProject = useCallback(async () => {
+    try {
+      await saveProject(state, customLayout);
+    } catch (err) {
+      console.error('Save failed:', err);
+      alert('Failed to save project.');
+    }
+  }, [state, customLayout]);
+
+  const handleLoadClick = useCallback(() => {
+    loadInputRef.current?.click();
+  }, []);
+
+  const handleLoadFile = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      e.target.value = '';
+
+      try {
+        const project = await loadProject(file);
+        // Restore custom layout if it was a custom one
+        if (project.customLayout) {
+          setCustomLayout(project.customLayout as CarouselLayout);
+        }
+        // Restore state
+        restoreState({
+          selectedLayoutId: project.layoutId,
+          aspectRatio: project.aspectRatio,
+          background: project.background,
+          textOverlays: project.textOverlays,
+          shapeOverlays: project.shapeOverlays,
+          images: project.images,
+          currentSlide: 0,
+        });
+      } catch (err) {
+        console.error('Load failed:', err);
+        alert('Failed to load project. The file may be corrupted or incompatible.');
+      }
+    },
+    [restoreState]
+  );
 
   // ─── Route to legal pages ──────────────────────────────
   if (page === '#/privacy') return <PrivacyPolicy onBack={goHome} />;
@@ -258,62 +472,212 @@ const App: React.FC = () => {
           </div>
         </section>
 
+        {/* -- Background Picker ----------------------- */}
+        {selectedLayout && (
+          <section className="app__bg-section">
+            <BackgroundPicker
+              background={state.background}
+              onChange={setBackground}
+            />
+          </section>
+        )}
+
         {/* -- Action Bar ------------------------------ */}
         {selectedLayout && (
           <section className="app__action-bar">
-            <div className="app__action-bar-left">
-              {state.selectedLayoutId === 'custom' && (
-                <button
-                  className="app__btn app__btn--outline"
-                  onClick={handleEditLayout}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M11.5 2.5L13.5 4.5L5 13H3V11L11.5 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Edit Layout
-                </button>
-              )}
+            {/* Row 1: Status + editing tools */}
+            <div className="app__action-row">
+              <div className="app__action-group">
+                {state.selectedLayoutId === 'custom' && (
+                  <button
+                    className="app__btn app__btn--outline"
+                    onClick={handleEditLayout}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M11.5 2.5L13.5 4.5L5 13H3V11L11.5 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Edit Layout
+                  </button>
+                )}
 
-              <span className="app__status-text">
-                {imageCount} / {selectedLayout.imageCount} images placed
-              </span>
-
-              {!allSlotsFilled && imageCount > 0 && (
-                <span className="app__hint">
-                  &mdash; {selectedLayout.imageCount - imageCount} more to export
+                <span className="app__status-text">
+                  {imageCount} / {selectedLayout.imageCount} images
                 </span>
-              )}
-            </div>
 
-            <div className="app__action-bar-right">
-              <button
-                className="app__btn app__btn--secondary"
-                onClick={clearAll}
-                disabled={imageCount === 0}
-              >
-                Clear All
-              </button>
-
-              <div className="app__scale-select">
-                <label className="app__scale-label" htmlFor="export-scale">Quality</label>
-                <select
-                  id="export-scale"
-                  className="app__scale-dropdown"
-                  value={exportScale}
-                  onChange={handleScaleChange}
-                >
-                  <option value={1}>1x (1080p)</option>
-                  <option value={2}>2x (2160p)</option>
-                  <option value={3}>3x (3240p)</option>
-                </select>
+                {!allSlotsFilled && imageCount > 0 && (
+                  <span className="app__hint">
+                    &mdash; {selectedLayout.imageCount - imageCount} more
+                  </span>
+                )}
               </div>
 
-              <div className="app__export-group">
+              <div className="app__action-group">
+                {/* Undo / Redo */}
+                <button
+                  className="app__btn app__btn--icon"
+                  onClick={undo}
+                  disabled={!canUndo}
+                  title="Undo (Ctrl+Z)"
+                  aria-label="Undo"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 6H10C12.2091 6 14 7.79086 14 10C14 12.2091 12.2091 14 10 14H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M6 3L3 6L6 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <button
+                  className="app__btn app__btn--icon"
+                  onClick={redo}
+                  disabled={!canRedo}
+                  title="Redo (Ctrl+Shift+Z)"
+                  aria-label="Redo"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M13 6H6C3.79086 6 2 7.79086 2 10C2 12.2091 3.79086 14 6 14H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M10 3L13 6L10 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+
+                <div className="app__separator" />
+
+                {/* Add Text */}
+                <button
+                  className="app__btn app__btn--icon"
+                  onClick={handleAddText}
+                  title="Add text overlay"
+                  aria-label="Add text"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 4V3H13V4M8 3V13M6 13H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+
+                {/* Add Shape (dropdown) */}
+                <div ref={shapeDropdownRef} className="app__shape-dropdown-wrapper" style={{ position: 'relative' }}>
+                  <button
+                    className="app__btn app__btn--icon"
+                    onClick={() => setShowShapeDropdown((v) => !v)}
+                    title="Add shape"
+                    aria-label="Add shape"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+                    </svg>
+                  </button>
+                  {showShapeDropdown && (
+                    <div className="app__shape-dropdown">
+                      {([
+                        { type: 'rectangle' as ShapeType, label: 'Rectangle', icon: <rect x="2" y="4" width="12" height="8" rx="1" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
+                        { type: 'square' as ShapeType, label: 'Square', icon: <rect x="3" y="3" width="10" height="10" rx="1" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
+                        { type: 'circle' as ShapeType, label: 'Circle', icon: <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
+                        { type: 'ellipse' as ShapeType, label: 'Ellipse', icon: <ellipse cx="8" cy="8" rx="6" ry="4" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
+                        { type: 'triangle' as ShapeType, label: 'Triangle', icon: <polygon points="8,2 14,14 2,14" stroke="currentColor" strokeWidth="1.3" fill="none"/> },
+                      ]).map(({ type, label, icon }) => (
+                        <button
+                          key={type}
+                          className="app__shape-dropdown-item"
+                          onClick={() => handleAddShape(type)}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">{icon}</svg>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Batch Upload */}
+                <button
+                  className="app__btn app__btn--icon"
+                  onClick={handleBatchUpload}
+                  title="Batch upload images"
+                  aria-label="Batch upload"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M8 10V2M8 2L5 5M8 2L11 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 10V13H14V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <input
+                  ref={batchInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="app__hidden-input"
+                  onChange={handleBatchFiles}
+                />
+
+                <div className="app__separator" />
+
+                <button
+                  className="app__btn app__btn--icon"
+                  onClick={clearAll}
+                  disabled={imageCount === 0 && state.textOverlays.length === 0 && state.shapeOverlays.length === 0}
+                  title="Clear all"
+                  aria-label="Clear all"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 5H13M5 5V13H11V5M7 7V11M9 7V11M6 5V3H10V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Row 2: Project + Export */}
+            <div className="app__action-row">
+              <div className="app__action-group">
+                {/* Save / Load */}
+                <button
+                  className="app__btn app__btn--secondary app__btn--compact"
+                  onClick={handleSaveProject}
+                  title="Save project"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M12 14H4C3.44772 14 3 13.5523 3 13V3C3 2.44772 3.44772 2 4 2H9L13 6V13C13 13.5523 12.5523 14 12 14Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M9 2V6H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Save
+                </button>
+                <button
+                  className="app__btn app__btn--secondary app__btn--compact"
+                  onClick={handleLoadClick}
+                  title="Load project"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 13H14M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Load
+                </button>
+                <input
+                  ref={loadInputRef}
+                  type="file"
+                  accept=".carousel,.zip"
+                  className="app__hidden-input"
+                  onChange={handleLoadFile}
+                />
+              </div>
+
+              <div className="app__action-group">
+                <div className="app__scale-select">
+                  <label className="app__scale-label" htmlFor="export-scale">Quality</label>
+                  <select
+                    id="export-scale"
+                    className="app__scale-dropdown"
+                    value={exportScale}
+                    onChange={handleScaleChange}
+                  >
+                    <option value={1}>1x</option>
+                    <option value={2}>2x</option>
+                    <option value={3}>3x</option>
+                  </select>
+                </div>
+
                 {canvasWarning && (
                   <span className="app__canvas-warning" title="This combination of slides and quality may be too large for some browsers. Consider lowering the quality.">
                     Large canvas
                   </span>
                 )}
+
                 <button
                   className="app__btn app__btn--primary"
                   onClick={handleExport}
@@ -331,10 +695,10 @@ const App: React.FC = () => {
                     </span>
                   ) : (
                     <>
-                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                      <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
                         <path d="M3 12.75V14.25C3 14.6642 3.16437 15.0613 3.45701 15.354C3.74964 15.6466 4.14775 15.811 4.5625 15.811H13.4375C13.8522 15.811 14.2504 15.6466 14.543 15.354C14.8356 15.0613 15 14.6642 15 14.25V12.75M9 3V11.25M9 11.25L12 8.25M9 11.25L6 8.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
-                      Export Carousel
+                      Export
                     </>
                   )}
                 </button>
@@ -351,9 +715,21 @@ const App: React.FC = () => {
               images={state.images}
               currentSlide={state.currentSlide}
               aspectRatio={state.aspectRatio}
+              background={state.background}
+              textOverlays={state.textOverlays}
+              shapeOverlays={state.shapeOverlays}
               onSetImage={setImage}
               onRemoveImage={removeImage}
               onSetCurrentSlide={setCurrentSlide}
+              onUpdateTextOverlay={updateTextOverlay}
+              onUpdateTextOverlayNoHistory={updateTextOverlayNoHistory}
+              onPushHistorySnapshot={pushHistorySnapshot}
+              onRemoveTextOverlay={removeTextOverlay}
+              onUpdateShapeOverlay={updateShapeOverlay}
+              onUpdateShapeOverlayNoHistory={updateShapeOverlayNoHistory}
+              onRemoveShapeOverlay={removeShapeOverlay}
+              onBringForward={bringForward}
+              onSendBackward={sendBackward}
             />
           ) : (
             <div className="app__empty">

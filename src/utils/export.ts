@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import type { CarouselLayout, PlacedImage, AspectRatio } from '../types';
-import { INSTAGRAM_WIDTH, ASPECT_RATIOS } from '../types';
+import type { CarouselLayout, PlacedImage, AspectRatio, BackgroundConfig, TextOverlay, ShapeOverlay } from '../types';
+import { INSTAGRAM_WIDTH, ASPECT_RATIOS, DEFAULT_BACKGROUND } from '../types';
 
 /**
  * Maximum total canvas pixels (width * height) before we warn / refuse.
@@ -15,7 +15,6 @@ export const MAX_CANVAS_PIXELS = 268_435_456;
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    // No crossOrigin needed — all images are loaded from same-origin blob: URLs
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = url;
@@ -24,8 +23,6 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 
 /**
  * Draw a single image into a region of the canvas using "cover" scaling.
- * The image fills the entire region while maintaining aspect ratio,
- * cropping any overflow.
  */
 function drawImageCover(
   ctx: CanvasRenderingContext2D,
@@ -44,20 +41,17 @@ function drawImageCover(
   let sx: number, sy: number, sw: number, sh: number;
 
   if (imgAspect > regionAspect) {
-    // Image is wider than region - crop sides
     sh = img.naturalHeight;
     sw = sh * regionAspect;
     sy = 0;
     sx = (img.naturalWidth - sw) / 2;
   } else {
-    // Image is taller than region - crop top/bottom
     sw = img.naturalWidth;
     sh = sw / regionAspect;
     sx = 0;
     sy = (img.naturalHeight - sh) / 2;
   }
 
-  // Apply scale
   const scaledSw = sw / scale;
   const scaledSh = sh / scale;
   const centerX = sx + sw / 2;
@@ -65,7 +59,6 @@ function drawImageCover(
   sx = centerX - scaledSw / 2 - offsetX * (sw / dw);
   sy = centerY - scaledSh / 2 - offsetY * (sh / dh);
 
-  // Clamp source coordinates
   sx = Math.max(0, Math.min(sx, img.naturalWidth - scaledSw));
   sy = Math.max(0, Math.min(sy, img.naturalHeight - scaledSh));
 
@@ -73,27 +66,244 @@ function drawImageCover(
 }
 
 /**
+ * Fill the canvas with the configured background (solid or gradient).
+ */
+function drawBackground(
+  ctx: CanvasRenderingContext2D,
+  bg: BackgroundConfig,
+  width: number,
+  height: number
+) {
+  if (bg.type === 'gradient') {
+    // Convert angle (CSS convention: 0deg = to top) to canvas coordinates
+    const angleRad = ((bg.gradientAngle - 90) * Math.PI) / 180;
+    const cx = width / 2;
+    const cy = height / 2;
+    const len = Math.sqrt(width * width + height * height) / 2;
+    const x0 = cx - Math.cos(angleRad) * len;
+    const y0 = cy - Math.sin(angleRad) * len;
+    const x1 = cx + Math.cos(angleRad) * len;
+    const y1 = cy + Math.sin(angleRad) * len;
+
+    const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+    grad.addColorStop(0, bg.gradientStart);
+    grad.addColorStop(1, bg.gradientEnd);
+    ctx.fillStyle = grad;
+  } else {
+    ctx.fillStyle = bg.color;
+  }
+  ctx.fillRect(0, 0, width, height);
+}
+
+/**
+ * Draw a single shape overlay onto the canvas.
+ */
+function drawShapeOverlay(
+  ctx: CanvasRenderingContext2D,
+  shape: ShapeOverlay,
+  slideWidth: number,
+  slideHeight: number,
+  scale: number
+) {
+  const isConstrained = shape.type === 'square' || shape.type === 'circle';
+  const x = shape.slideIndex * slideWidth + (shape.x / 100) * slideWidth;
+  const y = (shape.y / 100) * slideHeight;
+  const w = (shape.width / 100) * slideWidth;
+  // For constrained shapes, height = width (in pixels) to be visually 1:1
+  const h = isConstrained ? w : (shape.height / 100) * slideHeight;
+  const borderWidth = shape.borderWidth * scale;
+
+  ctx.save();
+  ctx.globalAlpha = shape.opacity;
+
+  // Set fill style
+  let fillStyle: string | CanvasGradient = 'transparent';
+  if (shape.fillType === 'solid') {
+    fillStyle = shape.fillColor;
+  } else if (shape.fillType === 'gradient') {
+    const angleRad = ((shape.gradientAngle - 90) * Math.PI) / 180;
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    const len = Math.sqrt(w * w + h * h) / 2;
+    const x0 = cx - Math.cos(angleRad) * len;
+    const y0 = cy - Math.sin(angleRad) * len;
+    const x1 = cx + Math.cos(angleRad) * len;
+    const y1 = cy + Math.sin(angleRad) * len;
+    const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+    grad.addColorStop(0, shape.gradientStart);
+    grad.addColorStop(1, shape.gradientEnd);
+    fillStyle = grad;
+  }
+
+  const hasFill = shape.fillType !== 'transparent';
+  const hasBorder = shape.borderWidth > 0;
+
+  if (shape.type === 'rectangle' || shape.type === 'square') {
+    if (hasFill) {
+      ctx.fillStyle = fillStyle;
+      ctx.fillRect(x, y, w, h);
+    }
+    if (hasBorder) {
+      ctx.strokeStyle = shape.borderColor;
+      ctx.lineWidth = borderWidth;
+      ctx.strokeRect(x, y, w, h);
+    }
+  } else if (shape.type === 'circle' || shape.type === 'ellipse') {
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    const rx = w / 2;
+    const ry = h / 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    if (hasFill) {
+      ctx.fillStyle = fillStyle;
+      ctx.fill();
+    }
+    if (hasBorder) {
+      ctx.strokeStyle = shape.borderColor;
+      ctx.lineWidth = borderWidth;
+      ctx.stroke();
+    }
+  } else if (shape.type === 'triangle') {
+    // Triangle: top-center, bottom-left, bottom-right
+    ctx.beginPath();
+    ctx.moveTo(x + w / 2, y);
+    ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.closePath();
+    if (hasFill) {
+      ctx.fillStyle = fillStyle;
+      ctx.fill();
+    }
+    if (hasBorder) {
+      ctx.strokeStyle = shape.borderColor;
+      ctx.lineWidth = borderWidth;
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Draw text overlays onto the full panoramic canvas.
+ */
+function drawTextOverlays(
+  ctx: CanvasRenderingContext2D,
+  overlays: TextOverlay[],
+  slideWidth: number,
+  slideHeight: number,
+  scale: number
+) {
+  for (const overlay of overlays) {
+    const canvasFontSize = overlay.fontSize * scale;
+    const weight = overlay.fontWeight === 700 ? 'bold' : 'normal';
+    const style = overlay.fontStyle === 'italic' ? 'italic' : 'normal';
+    ctx.font = `${style} ${weight} ${canvasFontSize}px ${overlay.fontFamily}`;
+    ctx.fillStyle = overlay.color;
+    ctx.globalAlpha = overlay.opacity;
+    ctx.textAlign = overlay.textAlign;
+    ctx.textBaseline = 'top';
+
+    // Position: slide offset + percentage within slide
+    const x = overlay.slideIndex * slideWidth + (overlay.x / 100) * slideWidth;
+    const y = (overlay.y / 100) * slideHeight;
+
+    // Adjust x for text alignment
+    let drawX = x;
+    if (overlay.textAlign === 'center') {
+      drawX = x; // textAlign handles it
+    } else if (overlay.textAlign === 'right') {
+      drawX = x;
+    }
+
+    // Draw text with word wrapping
+    const lines = overlay.text.split('\n');
+    let currentY = y;
+    const lineHeight = canvasFontSize * 1.2;
+
+    // Draw background behind text if set
+    if (overlay.backgroundColor) {
+      ctx.save();
+      ctx.globalAlpha = overlay.opacity;
+      ctx.fillStyle = overlay.backgroundColor;
+      for (const line of lines) {
+        const metrics = ctx.measureText(line);
+        const textWidth = metrics.width;
+        const padding = canvasFontSize * 0.1;
+
+        let bgX = drawX - padding;
+        if (overlay.textAlign === 'center') {
+          bgX = drawX - textWidth / 2 - padding;
+        } else if (overlay.textAlign === 'right') {
+          bgX = drawX - textWidth - padding;
+        }
+
+        ctx.fillRect(bgX, currentY, textWidth + padding * 2, lineHeight);
+        currentY += lineHeight;
+      }
+      ctx.restore();
+
+      // Reset for text drawing
+      ctx.fillStyle = overlay.color;
+      ctx.globalAlpha = overlay.opacity;
+      ctx.font = `${style} ${weight} ${canvasFontSize}px ${overlay.fontFamily}`;
+      ctx.textAlign = overlay.textAlign;
+      ctx.textBaseline = 'top';
+      currentY = y;
+    }
+
+    for (const line of lines) {
+      ctx.fillText(line, drawX, currentY);
+
+      // Draw underline if set
+      if (overlay.textDecoration === 'underline') {
+        const metrics = ctx.measureText(line);
+        const textWidth = metrics.width;
+        const underlineY = currentY + canvasFontSize * 1.05;
+        const lineThickness = Math.max(1, canvasFontSize * 0.06);
+
+        ctx.save();
+        ctx.strokeStyle = overlay.color;
+        ctx.lineWidth = lineThickness;
+
+        let startX = drawX;
+        if (overlay.textAlign === 'center') {
+          startX = drawX - textWidth / 2;
+        } else if (overlay.textAlign === 'right') {
+          startX = drawX - textWidth;
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(startX, underlineY);
+        ctx.lineTo(startX + textWidth, underlineY);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      currentY += lineHeight;
+    }
+
+    ctx.globalAlpha = 1;
+  }
+}
+
+/**
  * Export the carousel as individual slide images packaged in a ZIP file.
  *
- * Process:
- * 1. Create a full-size canvas representing all slides combined
- * 2. Draw each image into its slot on the full canvas
- * 3. Slice the full canvas into individual slide-sized canvases
- * 4. Export each slide as a high-quality PNG
- * 5. Package into a ZIP and trigger download
- *
  * @param scale  Resolution multiplier. 1 = Instagram native (1080px wide),
- *               2 = 2160px wide, 3 = 3240px wide. Higher values give
- *               sharper output for uses outside Instagram (print, web, etc.)
+ *               2 = 2160px wide, 3 = 3240px wide.
  */
 export async function exportCarousel(
   layout: CarouselLayout,
   images: Record<string, PlacedImage>,
   aspectRatio: AspectRatio = '1:1',
   onProgress?: (progress: number) => void,
-  scale: number = 1
+  scale: number = 1,
+  background: BackgroundConfig = DEFAULT_BACKGROUND,
+  textOverlays: TextOverlay[] = [],
+  shapeOverlays: ShapeOverlay[] = []
 ): Promise<void> {
-  // Clamp scale to valid range
   scale = Math.min(3, Math.max(1, Math.round(scale)));
 
   const config = ASPECT_RATIOS[aspectRatio];
@@ -102,7 +312,6 @@ export async function exportCarousel(
   const totalWidth = slideWidth * layout.slideCount;
   const totalHeight = slideHeight;
 
-  // Safety check: refuse if the canvas would exceed browser limits
   const totalPixels = totalWidth * totalHeight;
   if (totalPixels > MAX_CANVAS_PIXELS) {
     throw new Error(
@@ -111,20 +320,17 @@ export async function exportCarousel(
     );
   }
 
-  // Create the full panoramic canvas
   const fullCanvas = document.createElement('canvas');
   fullCanvas.width = totalWidth;
   fullCanvas.height = totalHeight;
   const fullCtx = fullCanvas.getContext('2d');
   if (!fullCtx) throw new Error('Could not create canvas context');
 
-  // Use highest quality resampling for downscaled images
   fullCtx.imageSmoothingEnabled = true;
   fullCtx.imageSmoothingQuality = 'high';
 
-  // Fill background white
-  fullCtx.fillStyle = '#ffffff';
-  fullCtx.fillRect(0, 0, totalWidth, totalHeight);
+  // Draw background (solid or gradient)
+  drawBackground(fullCtx, background, totalWidth, totalHeight);
 
   // Load and draw all images
   const totalSteps = layout.slots.length + layout.slideCount;
@@ -135,7 +341,6 @@ export async function exportCarousel(
     if (placedImage) {
       const img = await loadImage(placedImage.url);
 
-      // Convert percentage positions to pixel positions on full canvas
       const dx = (slot.x / 100) * totalWidth;
       const dy = (slot.y / 100) * totalHeight;
       const dw = (slot.width / 100) * totalWidth;
@@ -158,6 +363,30 @@ export async function exportCarousel(
     onProgress?.(completedSteps / totalSteps);
   }
 
+  // Wait for all fonts to be loaded before drawing text overlays
+  if (textOverlays.length > 0) {
+    await document.fonts.ready;
+  }
+
+  // Draw overlays in unified z-order (shapes and text interleaved by zIndex)
+  type OverlayEntry =
+    | { kind: 'text'; overlay: TextOverlay }
+    | { kind: 'shape'; overlay: ShapeOverlay };
+
+  const allOverlays: OverlayEntry[] = [
+    ...textOverlays.map((o) => ({ kind: 'text' as const, overlay: o })),
+    ...shapeOverlays.map((o) => ({ kind: 'shape' as const, overlay: o })),
+  ];
+  allOverlays.sort((a, b) => a.overlay.zIndex - b.overlay.zIndex);
+
+  for (const entry of allOverlays) {
+    if (entry.kind === 'text') {
+      drawTextOverlays(fullCtx, [entry.overlay], slideWidth, slideHeight, scale);
+    } else {
+      drawShapeOverlay(fullCtx, entry.overlay, slideWidth, slideHeight, scale);
+    }
+  }
+
   // Slice into individual slides
   const zip = new JSZip();
 
@@ -168,11 +397,9 @@ export async function exportCarousel(
     const slideCtx = slideCanvas.getContext('2d');
     if (!slideCtx) throw new Error('Could not create slide canvas context');
 
-    // Match high-quality resampling on slice canvases
     slideCtx.imageSmoothingEnabled = true;
     slideCtx.imageSmoothingQuality = 'high';
 
-    // Copy the relevant portion of the full canvas
     slideCtx.drawImage(
       fullCanvas,
       i * slideWidth,
@@ -185,7 +412,6 @@ export async function exportCarousel(
       slideHeight
     );
 
-    // Convert to blob
     const blob = await new Promise<Blob>((resolve, reject) => {
       slideCanvas.toBlob(
         (b) => {
@@ -203,7 +429,6 @@ export async function exportCarousel(
     onProgress?.(completedSteps / totalSteps);
   }
 
-  // Generate and download ZIP
   const zipBlob = await zip.generateAsync({ type: 'blob' });
   saveAs(zipBlob, `carousel-${layout.name.toLowerCase().replace(/\s+/g, '-')}.zip`);
 }
