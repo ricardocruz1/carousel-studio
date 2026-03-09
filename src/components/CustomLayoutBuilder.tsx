@@ -127,6 +127,7 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const clickedSlotRef = useRef<string | null>(null);
+  const drawStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Grid rows based on aspect ratio
   const ROWS = ASPECT_RATIOS[aspectRatio].gridRows;
@@ -249,6 +250,7 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
     if (drawMode && slots.length < MAX_SLOTS) {
       const grid = getGrid(e);
       setInteraction({ type: 'drawing', startCol: grid.col, startRow: grid.row });
+      drawStartRef.current = { x: e.clientX, y: e.clientY };
       canvasRef.current?.setPointerCapture(e.pointerId);
       e.preventDefault();
     } else if (!drawMode) {
@@ -316,30 +318,30 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
   };
 
   // Global up: finalize the current interaction
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent) => {
     if (interaction.type === 'drawing' && ghostRect) {
-      let { col, row, colSpan, rowSpan } = ghostRect;
+      // Use pixel distance to distinguish taps from drags (mobile finger
+      // jitter can easily cross grid cell boundaries on a tap)
+      const start = drawStartRef.current;
+      drawStartRef.current = null;
+      const dist = start ? Math.hypot(e.clientX - start.x, e.clientY - start.y) : 0;
+      const isTap = dist < 10;
 
-      // Single click (no drag) on an existing slot → select it
-      if (colSpan <= 1 && rowSpan <= 1 && clickedSlotRef.current) {
-        setSelectedId(clickedSlotRef.current);
-        setDrawMode(false);
+      if (isTap) {
+        // Tap on an existing slot → select it and exit draw mode
+        if (clickedSlotRef.current) {
+          setSelectedId(clickedSlotRef.current);
+          setDrawMode(false);
+        }
+        // Tap on empty space → do nothing (creation only happens on drag)
         clickedSlotRef.current = null;
         setInteraction({ type: 'idle' });
         return;
       }
+
       clickedSlotRef.current = null;
 
-      // Single click on empty space → create a default 3x3 slot
-      if (colSpan <= 1 && rowSpan <= 1) {
-        colSpan = Math.min(3, totalCols - col);
-        rowSpan = Math.min(3, ROWS - row);
-        // Center on click position
-        col = Math.max(0, col - 1);
-        row = Math.max(0, row - 1);
-        col = Math.min(col, totalCols - colSpan);
-        row = Math.min(row, ROWS - rowSpan);
-      }
+      const { col, row, colSpan, rowSpan } = ghostRect;
 
       const newSlot: CustomSlot = {
         id: `custom-${nextId}`,
