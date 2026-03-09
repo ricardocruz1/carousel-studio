@@ -625,6 +625,7 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
                   {isSelected && (
                     <button
                       className="builder__slot-delete"
+                      onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteSlot(slot.id);
