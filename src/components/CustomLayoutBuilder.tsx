@@ -273,6 +273,7 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
     if (!slot) return;
 
     setSelectedId(slotId);
+    drawStartRef.current = { x: e.clientX, y: e.clientY };
     setInteraction({
       type: 'moving',
       slotId,
@@ -296,6 +297,7 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
     const slot = slots.find((s) => s.id === slotId);
     if (!slot) return;
 
+    drawStartRef.current = { x: e.clientX, y: e.clientY };
     setInteraction({
       type: 'resizing',
       slotId,
@@ -356,8 +358,14 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
     }
 
     if (interaction.type === 'moving' || interaction.type === 'resizing') {
-      // Commit the visual positions to actual state
-      setSlots(visualSlots);
+      // Only commit position change if there was actual drag movement;
+      // a tap (< 10px) just selects without moving/resizing
+      const start = drawStartRef.current;
+      drawStartRef.current = null;
+      const dist = start ? Math.hypot(e.clientX - start.x, e.clientY - start.y) : 0;
+      if (dist >= 10) {
+        setSlots(visualSlots);
+      }
     }
 
     setInteraction({ type: 'idle' });
