@@ -244,3 +244,14 @@
   color: var(--text-tertiary);
   margin: 0;
 }
+
+/* ─── Pinned Toolbar (Mobile) ────────────────────────── */
+
+.carousel-editor__pinned-toolbar {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px 0;
+  display: flex;
+  justify-content: center;
+}

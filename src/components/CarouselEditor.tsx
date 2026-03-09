@@ -93,6 +93,18 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
     setSelectedKind(null);
   }, [currentSlide]);
 
+  // ── Detect mobile (coarse pointer = touch device) ───────────────────────
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   // ── Swipe navigation on mobile ──────────────────────────────────────────
   const viewportRef = useRef<HTMLDivElement>(null);
   const swipeRef = useRef<{ startX: number; startY: number; started: boolean } | null>(null);
@@ -131,9 +143,9 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
     swipeRef.current = null;
   }, []);
 
-  // Keep toolbar position in sync with selected overlay element
+  // Keep toolbar position in sync with selected overlay element (desktop only)
   useLayoutEffect(() => {
-    if (!selectedOverlayId) {
+    if (!selectedOverlayId || isMobile) {
       setToolbarPos(null);
       return;
     }
@@ -174,6 +186,30 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
 
   return (
     <div className="carousel-editor">
+      {/* Mobile-only: pinned toolbar above viewport */}
+      {isMobile && selectedTextOverlay && (
+        <div className="carousel-editor__pinned-toolbar" onPointerDown={(e) => e.stopPropagation()}>
+          <FloatingToolbar
+            overlay={selectedTextOverlay}
+            onUpdate={onUpdateTextOverlay}
+            onRemove={onRemoveTextOverlay}
+            onBringForward={onBringForward}
+            onSendBackward={onSendBackward}
+          />
+        </div>
+      )}
+      {isMobile && selectedShapeOverlay && (
+        <div className="carousel-editor__pinned-toolbar" onPointerDown={(e) => e.stopPropagation()}>
+          <ShapeToolbar
+            shape={selectedShapeOverlay}
+            onUpdate={onUpdateShapeOverlay}
+            onRemove={onRemoveShapeOverlay}
+            onBringForward={onBringForward}
+            onSendBackward={onSendBackward}
+          />
+        </div>
+      )}
+
       <div
         className="carousel-editor__viewport"
         ref={viewportRef}
@@ -249,8 +285,8 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
         </div>
       </div>
 
-      {/* Floating toolbar — portal to body, positioned above the selected overlay */}
-      {selectedTextOverlay && toolbarPos && createPortal(
+      {/* Floating toolbar — portal to body, positioned above the selected overlay (desktop only) */}
+      {!isMobile && selectedTextOverlay && toolbarPos && createPortal(
         <div
           className="text-toolbar-portal"
           style={{
@@ -274,8 +310,8 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
         document.body,
       )}
 
-      {/* Shape toolbar — portal to body */}
-      {selectedShapeOverlay && toolbarPos && createPortal(
+      {/* Shape toolbar — portal to body (desktop only) */}
+      {!isMobile && selectedShapeOverlay && toolbarPos && createPortal(
         <div
           className="text-toolbar-portal"
           style={{

@@ -525,6 +525,7 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
               width: canvasWidth,
               height: canvasHeight,
               backgroundSize: `${cellSize}px ${cellSize}px`,
+              touchAction: drawMode ? 'none' : undefined,
             }}
             onPointerDown={handleCanvasPointerDown}
             onPointerMove={handlePointerMove}

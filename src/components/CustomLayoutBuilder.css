@@ -211,7 +211,9 @@
   background-position: 0 0;
   transition: border-color 0.2s ease;
   user-select: none;
-  touch-action: none;
+  /* touch-action set dynamically via inline style:
+     'none' in draw mode (prevents scroll so drawing works),
+     'auto' otherwise (allows horizontal scroll of parent) */
 }
 
 .builder__canvas--draw {
@@ -281,6 +283,7 @@
   cursor: grab;
   transition: box-shadow 0.15s ease;
   z-index: 1;
+  touch-action: none;
 }
 
 @media (hover: hover) {
