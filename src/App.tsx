@@ -832,7 +832,7 @@ const App: React.FC = () => {
                   <button
                     className="app__btn app__btn--icon"
                     onClick={clearAll}
-                    disabled={imageCount === 0 && state.textOverlays.length === 0 && state.shapeOverlays.length === 0}
+                    disabled={!state.selectedLayoutId && imageCount === 0 && state.textOverlays.length === 0 && state.shapeOverlays.length === 0}
                     title="Clear all"
                     aria-label="Clear all"
                   >

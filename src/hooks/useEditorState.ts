@@ -350,6 +350,7 @@ export function useEditorState() {
   const clearAll = useCallback(() => {
     updateWithHistory((prev) => ({
       ...prev,
+      selectedLayoutId: null,
       images: {},
       currentSlide: 0,
       textOverlays: [],
