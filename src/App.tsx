@@ -3,6 +3,9 @@ import { LayoutPicker } from './components/LayoutPicker';
 import { CarouselEditor } from './components/CarouselEditor';
 import { CustomLayoutBuilder } from './components/CustomLayoutBuilder';
 import { AdGateModal } from './components/AdGateModal';
+
+/** Set to true once AdSense is approved and serving ads. */
+const ADS_ENABLED = false;
 import { BackgroundPicker } from './components/BackgroundPicker';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { TermsOfService } from './components/TermsOfService';
@@ -340,11 +343,15 @@ const App: React.FC = () => {
     }
   }, [selectedLayout, allSlotsFilled, state.currentSlide, state.images, state.aspectRatio, state.background, state.textOverlays, state.shapeOverlays, exportScale, isMobile, showToast]);
 
-  /** User clicks "Export Carousel" — show ad gate first */
+  /** User clicks "Export Carousel" — show ad gate first (if ads enabled) */
   const handleExport = useCallback(() => {
     if (!selectedLayout || !allSlotsFilled) return;
-    setShowAdGate(true);
-  }, [selectedLayout, allSlotsFilled]);
+    if (ADS_ENABLED) {
+      setShowAdGate(true);
+    } else {
+      doExport();
+    }
+  }, [selectedLayout, allSlotsFilled, doExport]);
 
   /** Ad gate countdown finished — close modal and export */
   const handleAdGateComplete = useCallback(() => {
