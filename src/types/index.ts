@@ -4,7 +4,7 @@ export const INSTAGRAM_WIDTH = 1080;
 /**
  * Supported Instagram carousel aspect ratios.
  */
-export type AspectRatio = '1:1' | '4:5' | '1.91:1';
+export type AspectRatio = '1:1' | '4:5' | '9:16' | '1.91:1';
 
 export interface AspectRatioConfig {
   width: number;
@@ -19,10 +19,11 @@ export interface AspectRatioConfig {
 export const ASPECT_RATIOS: Record<AspectRatio, AspectRatioConfig> = {
   '1:1': { width: 1080, height: 1080, label: 'Square', gridRows: 12, cssRatio: '1 / 1' },
   '4:5': { width: 1080, height: 1350, label: 'Portrait', gridRows: 16, cssRatio: '4 / 5' },
+  '9:16': { width: 1080, height: 1920, label: 'Story', gridRows: 22, cssRatio: '9 / 16' },
   '1.91:1': { width: 1080, height: 566, label: 'Landscape', gridRows: 6, cssRatio: '1.91 / 1' },
 };
 
-export const ASPECT_RATIO_OPTIONS: AspectRatio[] = ['1:1', '4:5', '1.91:1'];
+export const ASPECT_RATIO_OPTIONS: AspectRatio[] = ['1:1', '4:5', '9:16', '1.91:1'];
 
 /**
  * A region within the full panoramic canvas that an image occupies.
