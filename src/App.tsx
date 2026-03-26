@@ -72,6 +72,7 @@ const App: React.FC = () => {
     removeImage,
     batchSetImages,
     updateImageOffsetNoHistory,
+    updateImageFilters,
     setCurrentSlide,
     setExporting,
     setAspectRatio,
@@ -986,6 +987,7 @@ const App: React.FC = () => {
               onSendBackward={sendBackward}
               onUpdateImageOffsetNoHistory={updateImageOffsetNoHistory}
               onPushImageHistorySnapshot={pushHistorySnapshot}
+              onUpdateImageFilters={updateImageFilters}
             />
           ) : (
             <div className="app__empty">

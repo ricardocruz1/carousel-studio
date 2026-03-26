@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { EditorState, PlacedImage, AspectRatio, TextOverlay, ShapeOverlay, BackgroundConfig } from '../types';
-import { DEFAULT_BACKGROUND } from '../types';
+import type { EditorState, PlacedImage, AspectRatio, TextOverlay, ShapeOverlay, BackgroundConfig, ImageFilters } from '../types';
+import { DEFAULT_BACKGROUND, DEFAULT_IMAGE_FILTERS } from '../types';
 
 const MAX_HISTORY = 50;
 
@@ -120,6 +120,7 @@ export function useEditorState() {
       offsetX: 50,
       offsetY: 50,
       scale: 1,
+      filters: { ...DEFAULT_IMAGE_FILTERS },
     };
     updateWithHistory((prev) => ({
       ...prev,
@@ -153,6 +154,7 @@ export function useEditorState() {
           offsetX: 50,
           offsetY: 50,
           scale: 1,
+          filters: { ...DEFAULT_IMAGE_FILTERS },
         };
       }
       return { ...prev, images: newImages };
@@ -171,6 +173,19 @@ export function useEditorState() {
       };
     });
   }, []);
+
+  // ─── Image filters ──────────────────────────────────────────────
+
+  const updateImageFilters = useCallback((slotId: string, filters: Partial<ImageFilters>) => {
+    updateWithHistory((prev) => {
+      const img = prev.images[slotId];
+      if (!img) return prev;
+      return {
+        ...prev,
+        images: { ...prev.images, [slotId]: { ...img, filters: { ...img.filters, ...filters } } },
+      };
+    });
+  }, [updateWithHistory]);
 
   // ─── Slide navigation (no history) ──────────────────────────────
 
@@ -379,6 +394,7 @@ export function useEditorState() {
     removeImage,
     batchSetImages,
     updateImageOffsetNoHistory,
+    updateImageFilters,
     setCurrentSlide,
     setExporting,
     setAspectRatio,

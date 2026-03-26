@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { CarouselLayout, PlacedImage, AspectRatio, TextOverlay, ShapeOverlay, BackgroundConfig } from '../types';
-import { ASPECT_RATIOS } from '../types';
+import type { CarouselLayout, PlacedImage, AspectRatio, TextOverlay, ShapeOverlay, BackgroundConfig, ImageFilters } from '../types';
+import { ASPECT_RATIOS, buildCssFilterString } from '../types';
 import { useToast } from '../hooks/useToast';
 import { compressImage } from '../utils/imageCompress';
 import type { SnapGuide } from '../utils/snap';
 import { TextOverlayLayer, FloatingToolbar } from './TextOverlayLayer';
 import { ShapeOverlayLayer, ShapeToolbar } from './ShapeOverlayLayer';
+import { ImageFilterToolbar } from './ImageFilterToolbar';
 import './CarouselEditor.css';
 
 /** Build a CSS background string from a BackgroundConfig. */
@@ -39,6 +40,7 @@ interface CarouselEditorProps {
   onSendBackward: (id: string, kind: 'text' | 'shape') => void;
   onUpdateImageOffsetNoHistory: (slotId: string, updates: { offsetX?: number; offsetY?: number; scale?: number }) => void;
   onPushImageHistorySnapshot: () => void;
+  onUpdateImageFilters: (slotId: string, filters: Partial<ImageFilters>) => void;
 }
 
 export const CarouselEditor: React.FC<CarouselEditorProps> = ({
@@ -63,6 +65,7 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
   onSendBackward,
   onUpdateImageOffsetNoHistory,
   onPushImageHistorySnapshot,
+  onUpdateImageFilters,
 }) => {
   const slideOffset = -(currentSlide * (100 / layout.slideCount));
   const config = ASPECT_RATIOS[aspectRatio];
@@ -72,6 +75,10 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
   // Unified selection: either a text overlay or a shape overlay is selected
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [selectedKind, setSelectedKind] = useState<'text' | 'shape' | null>(null);
+
+  // Image filter editing state
+  const [selectedFilterSlotId, setSelectedFilterSlotId] = useState<string | null>(null);
+  const selectedFilterImage = selectedFilterSlotId ? images[selectedFilterSlotId] ?? null : null;
 
   const selectedTextOverlay = selectedKind === 'text' && selectedOverlayId
     ? textOverlays.find((o) => o.id === selectedOverlayId) ?? null
@@ -87,12 +94,29 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
   const handleSelectText = useCallback((id: string | null) => {
     setSelectedOverlayId(id);
     setSelectedKind(id ? 'text' : null);
+    if (id) setSelectedFilterSlotId(null); // deselect filter when selecting overlay
   }, []);
 
   const handleSelectShape = useCallback((id: string | null) => {
     setSelectedOverlayId(id);
     setSelectedKind(id ? 'shape' : null);
+    if (id) setSelectedFilterSlotId(null); // deselect filter when selecting overlay
   }, []);
+
+  const handleFilterClick = useCallback((slotId: string) => {
+    setSelectedFilterSlotId((prev) => (prev === slotId ? null : slotId));
+    // Deselect overlays when opening filter
+    setSelectedOverlayId(null);
+    setSelectedKind(null);
+  }, []);
+
+  const handleFilterClose = useCallback(() => {
+    setSelectedFilterSlotId(null);
+  }, []);
+
+  const handleFilterUpdate = useCallback((slotId: string, filters: Partial<ImageFilters>) => {
+    onUpdateImageFilters(slotId, filters);
+  }, [onUpdateImageFilters]);
 
   // Toolbar position — computed from the selected overlay element's bounding rect
   const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number; below: boolean } | null>(null);
@@ -101,6 +125,7 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
   useEffect(() => {
     setSelectedOverlayId(null);
     setSelectedKind(null);
+    setSelectedFilterSlotId(null);
   }, [currentSlide]);
 
   // ── Detect mobile (coarse pointer = touch device) ───────────────────────
@@ -219,6 +244,15 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
           />
         </div>
       )}
+      {isMobile && selectedFilterImage && selectedFilterSlotId && (
+        <div className="carousel-editor__pinned-toolbar" onPointerDown={(e) => e.stopPropagation()}>
+          <ImageFilterToolbar
+            filters={selectedFilterImage.filters}
+            onUpdate={(filters) => handleFilterUpdate(selectedFilterSlotId, filters)}
+            onClose={handleFilterClose}
+          />
+        </div>
+      )}
 
       <div
         className="carousel-editor__viewport"
@@ -266,10 +300,12 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
               width={slot.width}
               height={slot.height}
               placedImage={images[slot.id]}
+              isFilterOpen={selectedFilterSlotId === slot.id}
               onSetImage={onSetImage}
               onRemoveImage={onRemoveImage}
               onUpdateOffsetNoHistory={onUpdateImageOffsetNoHistory}
               onPushHistorySnapshot={onPushImageHistorySnapshot}
+              onFilterClick={handleFilterClick}
             />
           ))}
 
@@ -371,6 +407,17 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
         document.body,
       )}
 
+      {/* Image filter toolbar — shown below viewport on desktop */}
+      {!isMobile && selectedFilterImage && selectedFilterSlotId && (
+        <div className="carousel-editor__filter-toolbar" onPointerDown={(e) => e.stopPropagation()}>
+          <ImageFilterToolbar
+            filters={selectedFilterImage.filters}
+            onUpdate={(filters) => handleFilterUpdate(selectedFilterSlotId, filters)}
+            onClose={handleFilterClose}
+          />
+        </div>
+      )}
+
       {/* Slide navigation */}
       <div className="carousel-editor__nav">
         <button
@@ -427,10 +474,12 @@ interface ImageSlotProps {
   width: number;
   height: number;
   placedImage?: PlacedImage;
+  isFilterOpen: boolean;
   onSetImage: (slotId: string, file: File) => void;
   onRemoveImage: (slotId: string) => void;
   onUpdateOffsetNoHistory: (slotId: string, updates: { offsetX?: number; offsetY?: number; scale?: number }) => void;
   onPushHistorySnapshot: () => void;
+  onFilterClick: (slotId: string) => void;
 }
 
 /** Pixel distance threshold to distinguish a tap from a drag. */
@@ -444,10 +493,12 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
   width,
   height,
   placedImage,
+  isFilterOpen,
   onSetImage,
   onRemoveImage,
   onUpdateOffsetNoHistory,
   onPushHistorySnapshot,
+  onFilterClick,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -666,9 +717,20 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
     setIsPanning(false);
   }, []);
 
+    // Compute CSS filter string for the image
+    const cssFilter = placedImage ? buildCssFilterString(placedImage.filters) : 'none';
+
+    const handleFilterBtn = useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onFilterClick(slotId);
+      },
+      [slotId, onFilterClick]
+    );
+
   return (
     <div
-      className={`image-slot ${isDragOver ? 'image-slot--drag-over' : ''} ${placedImage ? 'image-slot--filled' : ''} ${isPanning ? 'image-slot--panning' : ''}`}
+      className={`image-slot ${isDragOver ? 'image-slot--drag-over' : ''} ${placedImage ? 'image-slot--filled' : ''} ${isPanning ? 'image-slot--panning' : ''} ${isFilterOpen ? 'image-slot--filter-open' : ''}`}
       style={{
         left: `${x}%`,
         top: `${y}%`,
@@ -713,6 +775,7 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
               onError={() => setImgError(true)}
               style={{
                 objectPosition: `${placedImage.offsetX}% ${placedImage.offsetY}%`,
+                filter: cssFilter !== 'none' ? cssFilter : undefined,
               }}
             />
           )}
@@ -725,6 +788,24 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M13.5 4.5L11.5 2.5M13.5 4.5L5.5 12.5L2 13.5L3 10L11.5 2.5M13.5 4.5L11.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button
+              className={`image-slot__action-btn ${isFilterOpen ? 'image-slot__action-btn--active' : ''}`}
+              onClick={handleFilterBtn}
+              aria-label="Image filters"
+              title="Filters"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="4" cy="5" r="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                <circle cx="8" cy="11" r="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                <circle cx="12" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                <line x1="1" y1="5" x2="2.5" y2="5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                <line x1="5.5" y1="5" x2="15" y2="5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                <line x1="1" y1="11" x2="6.5" y2="11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                <line x1="9.5" y1="11" x2="15" y2="11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                <line x1="1" y1="7" x2="10.5" y2="7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                <line x1="13.5" y1="7" x2="15" y2="7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
               </svg>
             </button>
             <button

@@ -7,10 +7,11 @@ import type {
   ShapeOverlay,
   BackgroundConfig,
   AspectRatio,
+  ImageFilters,
 } from '../types';
-import { DEFAULT_BACKGROUND } from '../types';
+import { DEFAULT_BACKGROUND, DEFAULT_IMAGE_FILTERS } from '../types';
 
-const PROJECT_VERSION = 3;
+const PROJECT_VERSION = 4;
 
 interface ProjectJson {
   version: number;
@@ -24,6 +25,8 @@ interface ProjectJson {
   imageSlots: Record<string, string>;
   /** Maps slotId → { offsetX, offsetY, scale } for image positioning (v3+) */
   imageOffsets?: Record<string, { offsetX: number; offsetY: number; scale: number }>;
+  /** Maps slotId → image filter settings (v4+) */
+  imageFilters?: Record<string, ImageFilters>;
 }
 
 /**
@@ -39,6 +42,7 @@ export async function saveProject(
 
   const imageSlots: Record<string, string> = {};
   const imageOffsets: Record<string, { offsetX: number; offsetY: number; scale: number }> = {};
+  const imageFilters: Record<string, ImageFilters> = {};
 
   // Add each placed image to the zip
   for (const [slotId, placed] of Object.entries(state.images)) {
@@ -51,6 +55,7 @@ export async function saveProject(
       offsetY: placed.offsetY,
       scale: placed.scale,
     };
+    imageFilters[slotId] = placed.filters;
   }
 
   const projectJson: ProjectJson = {
@@ -63,6 +68,7 @@ export async function saveProject(
     shapeOverlays: state.shapeOverlays,
     imageSlots,
     imageOffsets,
+    imageFilters,
   };
 
   zip.file('project.json', JSON.stringify(projectJson, null, 2));
@@ -131,6 +137,10 @@ export async function loadProject(file: File): Promise<{
       offsetX: project.imageOffsets?.[slotId]?.offsetX ?? 50,
       offsetY: project.imageOffsets?.[slotId]?.offsetY ?? 50,
       scale: project.imageOffsets?.[slotId]?.scale ?? 1,
+      // Restore filters if available (v4+), otherwise defaults
+      filters: project.imageFilters?.[slotId]
+        ? { ...DEFAULT_IMAGE_FILTERS, ...project.imageFilters[slotId] }
+        : { ...DEFAULT_IMAGE_FILTERS },
     };
   }
 

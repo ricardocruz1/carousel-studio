@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import type { CarouselLayout, PlacedImage, AspectRatio, BackgroundConfig, TextOverlay, ShapeOverlay } from '../types';
-import { INSTAGRAM_WIDTH, ASPECT_RATIOS, DEFAULT_BACKGROUND } from '../types';
+import { INSTAGRAM_WIDTH, ASPECT_RATIOS, DEFAULT_BACKGROUND, buildCssFilterString } from '../types';
 
 /**
  * Maximum total canvas pixels (width * height) before we warn / refuse.
@@ -340,6 +340,14 @@ export async function exportCarousel(
       const dw = (slot.width / 100) * totalWidth;
       const dh = (slot.height / 100) * totalHeight;
 
+      // Apply image filters (blur is scaled to export resolution)
+      const blurScale = slideWidth / INSTAGRAM_WIDTH;
+      const filterStr = buildCssFilterString(placedImage.filters, blurScale);
+      if (filterStr !== 'none') {
+        fullCtx.save();
+        fullCtx.filter = filterStr;
+      }
+
       drawImageCover(
         fullCtx,
         img,
@@ -351,6 +359,10 @@ export async function exportCarousel(
         placedImage.offsetY,
         placedImage.scale
       );
+
+      if (filterStr !== 'none') {
+        fullCtx.restore();
+      }
     }
 
     completedSteps++;
@@ -473,7 +485,20 @@ export async function renderSingleSlide(
       const dy = (slot.y / 100) * totalHeight;
       const dw = (slot.width / 100) * totalWidth;
       const dh = (slot.height / 100) * totalHeight;
+
+      // Apply image filters (blur is scaled to export resolution)
+      const blurScale = slideWidth / INSTAGRAM_WIDTH;
+      const filterStr = buildCssFilterString(placedImage.filters, blurScale);
+      if (filterStr !== 'none') {
+        fullCtx.save();
+        fullCtx.filter = filterStr;
+      }
+
       drawImageCover(fullCtx, img, dx, dy, dw, dh, placedImage.offsetX, placedImage.offsetY, placedImage.scale);
+
+      if (filterStr !== 'none') {
+        fullCtx.restore();
+      }
     }
   }
 

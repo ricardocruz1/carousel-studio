@@ -59,6 +59,48 @@ export interface CarouselLayout {
 /**
  * Represents a user-placed image in a slot.
  */
+export type FilterPreset = 'none' | 'grayscale' | 'sepia' | 'invert';
+
+export interface ImageFilters {
+  blur: number;        // px at native 1080px width, 0 = off
+  brightness: number;  // percentage, 100 = normal
+  contrast: number;    // percentage, 100 = normal
+  saturation: number;  // percentage, 100 = normal
+  opacity: number;     // percentage, 100 = fully opaque
+  preset: FilterPreset;
+}
+
+export const DEFAULT_IMAGE_FILTERS: ImageFilters = {
+  blur: 0,
+  brightness: 100,
+  contrast: 100,
+  saturation: 100,
+  opacity: 100,
+  preset: 'none',
+};
+
+/**
+ * Build a CSS `filter` string from ImageFilters.
+ * `blurScale` converts the native blur (at 1080px) to the current display size.
+ */
+export function buildCssFilterString(f: ImageFilters, blurScale: number = 1): string {
+  const parts: string[] = [];
+
+  // Preset filters
+  if (f.preset === 'grayscale') parts.push('grayscale(1)');
+  else if (f.preset === 'sepia') parts.push('sepia(1)');
+  else if (f.preset === 'invert') parts.push('invert(1)');
+
+  // Adjustments (only add if non-default to keep the string short)
+  if (f.blur > 0) parts.push(`blur(${f.blur * blurScale}px)`);
+  if (f.brightness !== 100) parts.push(`brightness(${f.brightness / 100})`);
+  if (f.contrast !== 100) parts.push(`contrast(${f.contrast / 100})`);
+  if (f.saturation !== 100) parts.push(`saturate(${f.saturation / 100})`);
+  if (f.opacity !== 100) parts.push(`opacity(${f.opacity / 100})`);
+
+  return parts.length > 0 ? parts.join(' ') : 'none';
+}
+
 export interface PlacedImage {
   slotId: string;
   file: File;
@@ -68,6 +110,7 @@ export interface PlacedImage {
   offsetX: number;
   offsetY: number;
   scale: number;
+  filters: ImageFilters;
 }
 
 // ─── Text Overlay ──────────────────────────────────────────

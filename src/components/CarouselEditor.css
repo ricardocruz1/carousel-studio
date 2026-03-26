@@ -206,6 +206,32 @@
   }
 }
 
+.image-slot__action-btn--active {
+  background: var(--accent, #6c5ce7);
+  color: #fff;
+}
+
+@media (hover: hover) {
+  .image-slot__action-btn--active:hover {
+    background: var(--accent, #6c5ce7);
+    color: #fff;
+    transform: scale(1.1);
+  }
+}
+
+/* Show overlay permanently when filter panel is open */
+.image-slot--filter-open .image-slot__overlay {
+  opacity: 1;
+}
+
+/* ─── Filter Toolbar (Desktop) ─────────────────────────── */
+
+.carousel-editor__filter-toolbar {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
 /* ─── Navigation ─────────────────────────────────────────── */
 
 .carousel-editor__nav {
