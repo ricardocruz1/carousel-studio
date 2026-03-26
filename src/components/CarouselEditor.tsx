@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { CarouselLayout, PlacedImage, AspectRatio, TextOverlay, ShapeOverlay, BackgroundConfig, ImageFilters } from '../types';
+import type { CarouselLayout, PlacedImage, AspectRatio, TextOverlay, ShapeOverlay, BackgroundConfig, ImageFilters, Layer } from '../types';
 import { ASPECT_RATIOS, buildCssFilterString } from '../types';
 import { useToast } from '../hooks/useToast';
 import { compressImage } from '../utils/imageCompress';
@@ -26,6 +26,10 @@ interface CarouselEditorProps {
   background: BackgroundConfig;
   textOverlays: TextOverlay[];
   shapeOverlays: ShapeOverlay[];
+  /** All layers for multi-layer rendering (custom mode only). */
+  allLayers?: Layer[];
+  /** ID of the currently active layer (custom mode only). */
+  activeLayerId?: string | null;
   onSetImage: (slotId: string, file: File) => void;
   onRemoveImage: (slotId: string) => void;
   onSetCurrentSlide: (slide: number) => void;
@@ -51,6 +55,8 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
   background,
   textOverlays,
   shapeOverlays,
+  allLayers,
+  activeLayerId,
   onSetImage,
   onRemoveImage,
   onSetCurrentSlide,
@@ -329,7 +335,106 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
             </div>
           ))}
 
-          {/* Image slots */}
+          {/* ── Multi-layer rendering (custom mode) ──────────────── */}
+          {/* Render layers bottom-to-top. Inactive visible layers are dimmed & non-interactive. */}
+          {/* The active layer's content is rendered as the interactive slots/overlays (below). */}
+          {allLayers && activeLayerId && allLayers.map((layer) => {
+            // Skip the active layer — it's rendered interactively below
+            if (layer.id === activeLayerId) return null;
+            // Skip hidden layers
+            if (!layer.visible) return null;
+            // Render this inactive layer's images + overlays at 40% opacity, pointer-events: none
+            return (
+              <div
+                key={`inactive-layer-${layer.id}`}
+                className="carousel-editor__inactive-layer"
+                style={{ opacity: 0.4, pointerEvents: 'none' }}
+              >
+                {/* Inactive layer image slots (read-only) */}
+                {layer.layout.slots.map((slot) => {
+                  const img = layer.images[slot.id];
+                  if (!img) return null;
+                  const cssFilter = buildCssFilterString(img.filters);
+                  return (
+                    <div
+                      key={slot.id}
+                      className="image-slot image-slot--filled image-slot--inactive"
+                      style={{
+                        left: `${slot.x}%`,
+                        top: `${slot.y}%`,
+                        width: `${slot.width}%`,
+                        height: `${slot.height}%`,
+                      }}
+                    >
+                      <img
+                        src={img.url}
+                        alt=""
+                        className="image-slot__image"
+                        draggable={false}
+                        style={{
+                          objectPosition: `${img.offsetX}% ${img.offsetY}%`,
+                          filter: cssFilter !== 'none' ? cssFilter : undefined,
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+
+                {/* Inactive layer text overlays (read-only) */}
+                {layer.textOverlays.filter((o) => o.slideIndex === currentSlide).map((overlay) => {
+                  const slideWidth = 100 / layer.layout.slideCount;
+                  const slideLeft = currentSlide * slideWidth;
+                  return (
+                    <div
+                      key={overlay.id}
+                      className="text-overlay-wrapper text-overlay-wrapper--inactive"
+                      style={{
+                        position: 'absolute',
+                        left: `${slideLeft + (overlay.x / 100) * slideWidth}%`,
+                        top: `${overlay.y}%`,
+                        fontSize: `${overlay.fontSize / 1080 * 100}cqi`,
+                        fontFamily: overlay.fontFamily,
+                        color: overlay.color,
+                        fontWeight: overlay.fontWeight,
+                        fontStyle: overlay.fontStyle,
+                        textDecoration: overlay.textDecoration,
+                        textAlign: overlay.textAlign,
+                        opacity: overlay.opacity,
+                        backgroundColor: overlay.backgroundColor || undefined,
+                        zIndex: overlay.zIndex,
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {overlay.text}
+                    </div>
+                  );
+                })}
+
+                {/* Inactive layer shape overlays (read-only) */}
+                {layer.shapeOverlays.filter((s) => s.slideIndex === currentSlide).map((shape) => {
+                  const slideWidth = 100 / layer.layout.slideCount;
+                  const slideLeft = currentSlide * slideWidth;
+                  return (
+                    <div
+                      key={shape.id}
+                      className="shape-overlay-wrapper shape-overlay-wrapper--inactive"
+                      style={{
+                        position: 'absolute',
+                        left: `${slideLeft + (shape.x / 100) * slideWidth}%`,
+                        top: `${shape.y}%`,
+                        width: `${(shape.width / 100) * slideWidth}%`,
+                        height: `${shape.height}%`,
+                        opacity: shape.opacity,
+                        zIndex: shape.zIndex,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })}
+
+          {/* Image slots (active layer — interactive) */}
           {layout.slots.map((slot, index) => (
             <ImageSlot
               key={slot.id}

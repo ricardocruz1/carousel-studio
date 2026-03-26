@@ -247,16 +247,73 @@ export const BACKGROUND_PRESETS: { label: string; config: BackgroundConfig }[] =
   { label: 'Ocean', config: { type: 'gradient', color: '#ffffff', gradientStart: '#2d3436', gradientEnd: '#0984e3', gradientAngle: 180 } },
 ];
 
+// ─── Layers ────────────────────────────────────────────────
+
+export const MAX_LAYERS = 5;
+
+/**
+ * A layer groups a custom layout, its images, and its overlays.
+ * Layers stack back-to-front: index 0 is the background layer.
+ * Only the bottom layer (index 0) receives the global background.
+ * Layers are only supported for Custom layouts.
+ */
+export interface Layer {
+  id: string;                           // "layer-1", "layer-2", ...
+  name: string;                         // user-visible label
+  layout: CarouselLayout;               // this layer's custom layout (slots)
+  images: Record<string, PlacedImage>;  // keyed by this layer's slot IDs
+  textOverlays: TextOverlay[];
+  shapeOverlays: ShapeOverlay[];
+  visible: boolean;                     // eye toggle for preview
+}
+
+/**
+ * Helper: create a default empty layer with a minimal layout.
+ */
+export function createDefaultLayer(id: string, name: string, slideCount: number): Layer {
+  return {
+    id,
+    name,
+    layout: {
+      id: 'custom',
+      name: 'Custom',
+      description: `Custom layout: 0 photos, ${slideCount} slides`,
+      imageCount: 0,
+      slideCount,
+      slots: [],
+      thumbnailSlots: [],
+    },
+    images: {},
+    textOverlays: [],
+    shapeOverlays: [],
+    visible: true,
+  };
+}
+
+// ─── Editor State ──────────────────────────────────────────
+
 /**
  * App state for the carousel editor.
+ *
+ * For preset layouts: `layers` is empty and the legacy fields
+ * (`images`, `textOverlays`, `shapeOverlays`) on EditorState are used.
+ *
+ * For custom layouts: `layers` holds 1+ Layer objects,
+ * `activeLayerId` identifies which is being edited.
+ * The legacy fields remain populated for backward compatibility but
+ * the source of truth for custom layouts is `layers`.
  */
 export interface EditorState {
   selectedLayoutId: string | null;
-  images: Record<string, PlacedImage>; // keyed by slotId
+  images: Record<string, PlacedImage>; // keyed by slotId (preset layouts only)
   currentSlide: number;
   isExporting: boolean;
   aspectRatio: AspectRatio;
-  textOverlays: TextOverlay[];
-  shapeOverlays: ShapeOverlay[];
+  textOverlays: TextOverlay[];          // preset layouts only
+  shapeOverlays: ShapeOverlay[];        // preset layouts only
   background: BackgroundConfig;
+
+  // ── Layers (custom layouts only) ──
+  layers: Layer[];
+  activeLayerId: string | null;
 }

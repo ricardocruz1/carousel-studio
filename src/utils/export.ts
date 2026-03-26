@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import type { CarouselLayout, PlacedImage, AspectRatio, BackgroundConfig, TextOverlay, ShapeOverlay } from '../types';
+import type { CarouselLayout, ImageSlot, PlacedImage, AspectRatio, BackgroundConfig, TextOverlay, ShapeOverlay, Layer } from '../types';
 import { INSTAGRAM_WIDTH, ASPECT_RATIOS, DEFAULT_BACKGROUND, buildCssFilterString } from '../types';
 
 /**
@@ -283,54 +283,24 @@ function drawTextOverlays(
 }
 
 /**
- * Export the carousel as individual slide images packaged in a ZIP file.
- *
- * @param scale  Resolution multiplier. 1 = Instagram native (1080px wide),
- *               2 = 2160px wide, 3 = 3240px wide.
+ * Draw a single layer's images and overlays onto the canvas.
+ * This is shared by both single-layer (preset) and multi-layer (custom) paths.
  */
-export async function exportCarousel(
-  layout: CarouselLayout,
+async function drawLayerContent(
+  ctx: CanvasRenderingContext2D,
+  slots: ImageSlot[],
   images: Record<string, PlacedImage>,
-  aspectRatio: AspectRatio = '1:1',
-  onProgress?: (progress: number) => void,
-  scale: number = 1,
-  background: BackgroundConfig = DEFAULT_BACKGROUND,
-  textOverlays: TextOverlay[] = [],
-  shapeOverlays: ShapeOverlay[] = []
-): Promise<void> {
-  scale = Math.min(3, Math.max(1, Math.round(scale)));
-
-  const config = ASPECT_RATIOS[aspectRatio];
-  const slideWidth = INSTAGRAM_WIDTH * scale;
-  const slideHeight = config.height * scale;
-  const totalWidth = slideWidth * layout.slideCount;
-  const totalHeight = slideHeight;
-
-  const totalPixels = totalWidth * totalHeight;
-  if (totalPixels > MAX_CANVAS_PIXELS) {
-    throw new Error(
-      `Canvas size (${totalWidth}x${totalHeight} = ${Math.round(totalPixels / 1_000_000)}MP) exceeds the safe limit. ` +
-      `Try reducing the quality setting or using fewer slides.`
-    );
-  }
-
-  const fullCanvas = document.createElement('canvas');
-  fullCanvas.width = totalWidth;
-  fullCanvas.height = totalHeight;
-  const fullCtx = fullCanvas.getContext('2d');
-  if (!fullCtx) throw new Error('Could not create canvas context');
-
-  fullCtx.imageSmoothingEnabled = true;
-  fullCtx.imageSmoothingQuality = 'high';
-
-  // Draw background (solid or gradient)
-  drawBackground(fullCtx, background, totalWidth, totalHeight);
-
-  // Load and draw all images
-  const totalSteps = layout.slots.length + layout.slideCount;
-  let completedSteps = 0;
-
-  for (const slot of layout.slots) {
+  textOverlays: TextOverlay[],
+  shapeOverlays: ShapeOverlay[],
+  totalWidth: number,
+  totalHeight: number,
+  slideWidth: number,
+  slideHeight: number,
+  scale: number,
+  onSlotDone?: () => void
+) {
+  // Draw images
+  for (const slot of slots) {
     const placedImage = images[slot.id];
     if (placedImage) {
       const img = await loadImage(placedImage.url);
@@ -344,12 +314,12 @@ export async function exportCarousel(
       const blurScale = slideWidth / INSTAGRAM_WIDTH;
       const filterStr = buildCssFilterString(placedImage.filters, blurScale);
       if (filterStr !== 'none') {
-        fullCtx.save();
-        fullCtx.filter = filterStr;
+        ctx.save();
+        ctx.filter = filterStr;
       }
 
       drawImageCover(
-        fullCtx,
+        ctx,
         img,
         dx,
         dy,
@@ -361,12 +331,11 @@ export async function exportCarousel(
       );
 
       if (filterStr !== 'none') {
-        fullCtx.restore();
+        ctx.restore();
       }
     }
 
-    completedSteps++;
-    onProgress?.(completedSteps / totalSteps);
+    onSlotDone?.();
   }
 
   // Wait for all fonts to be loaded before drawing text overlays
@@ -387,16 +356,115 @@ export async function exportCarousel(
 
   for (const entry of allOverlays) {
     if (entry.kind === 'text') {
-      drawTextOverlays(fullCtx, [entry.overlay], slideWidth, slideHeight, scale);
+      drawTextOverlays(ctx, [entry.overlay], slideWidth, slideHeight, scale);
     } else {
-      drawShapeOverlay(fullCtx, entry.overlay, slideWidth, slideHeight, scale);
+      drawShapeOverlay(ctx, entry.overlay, slideWidth, slideHeight, scale);
     }
+  }
+}
+
+/**
+ * Export the carousel as individual slide images packaged in a ZIP file.
+ *
+ * @param scale  Resolution multiplier. 1 = Instagram native (1080px wide),
+ *               2 = 2160px wide, 3 = 3240px wide.
+ * @param layers Optional array of layers for multi-layer custom layouts.
+ *               When provided, each visible layer's images and overlays are
+ *               composited in order (index 0 = bottom). The `layout`, `images`,
+ *               `textOverlays`, and `shapeOverlays` params serve as the single-
+ *               layer fallback for preset layouts.
+ */
+export async function exportCarousel(
+  layout: CarouselLayout,
+  images: Record<string, PlacedImage>,
+  aspectRatio: AspectRatio = '1:1',
+  onProgress?: (progress: number) => void,
+  scale: number = 1,
+  background: BackgroundConfig = DEFAULT_BACKGROUND,
+  textOverlays: TextOverlay[] = [],
+  shapeOverlays: ShapeOverlay[] = [],
+  layers?: Layer[]
+): Promise<void> {
+  scale = Math.min(3, Math.max(1, Math.round(scale)));
+
+  const config = ASPECT_RATIOS[aspectRatio];
+  const slideWidth = INSTAGRAM_WIDTH * scale;
+  const slideHeight = config.height * scale;
+  const slideCount = layout.slideCount;
+  const totalWidth = slideWidth * slideCount;
+  const totalHeight = slideHeight;
+
+  const totalPixels = totalWidth * totalHeight;
+  if (totalPixels > MAX_CANVAS_PIXELS) {
+    throw new Error(
+      `Canvas size (${totalWidth}x${totalHeight} = ${Math.round(totalPixels / 1_000_000)}MP) exceeds the safe limit. ` +
+      `Try reducing the quality setting or using fewer slides.`
+    );
+  }
+
+  const fullCanvas = document.createElement('canvas');
+  fullCanvas.width = totalWidth;
+  fullCanvas.height = totalHeight;
+  const fullCtx = fullCanvas.getContext('2d');
+  if (!fullCtx) throw new Error('Could not create canvas context');
+
+  fullCtx.imageSmoothingEnabled = true;
+  fullCtx.imageSmoothingQuality = 'high';
+
+  // Draw background (solid or gradient) — only once, before all layers
+  drawBackground(fullCtx, background, totalWidth, totalHeight);
+
+  // Calculate total steps for progress reporting
+  const visibleLayers = layers?.filter((l) => l.visible);
+  const totalSlots = visibleLayers
+    ? visibleLayers.reduce((sum, l) => sum + l.layout.slots.length, 0)
+    : layout.slots.length;
+  const totalSteps = totalSlots + slideCount;
+  let completedSteps = 0;
+
+  const advanceProgress = () => {
+    completedSteps++;
+    onProgress?.(completedSteps / totalSteps);
+  };
+
+  if (visibleLayers && visibleLayers.length > 0) {
+    // Multi-layer path: draw each visible layer bottom-to-top
+    for (const layer of visibleLayers) {
+      await drawLayerContent(
+        fullCtx,
+        layer.layout.slots,
+        layer.images,
+        layer.textOverlays,
+        layer.shapeOverlays,
+        totalWidth,
+        totalHeight,
+        slideWidth,
+        slideHeight,
+        scale,
+        advanceProgress
+      );
+    }
+  } else {
+    // Single-layer path (preset layouts): use the direct params
+    await drawLayerContent(
+      fullCtx,
+      layout.slots,
+      images,
+      textOverlays,
+      shapeOverlays,
+      totalWidth,
+      totalHeight,
+      slideWidth,
+      slideHeight,
+      scale,
+      advanceProgress
+    );
   }
 
   // Slice into individual slides
   const zip = new JSZip();
 
-  for (let i = 0; i < layout.slideCount; i++) {
+  for (let i = 0; i < slideCount; i++) {
     const slideCanvas = document.createElement('canvas');
     slideCanvas.width = slideWidth;
     slideCanvas.height = slideHeight;
@@ -442,6 +510,8 @@ export async function exportCarousel(
 /**
  * Render a single slide to a Blob (PNG).
  * Used for sharing / copying a single slide without exporting the full zip.
+ *
+ * @param layers Optional array of layers for multi-layer custom layouts.
  */
 export async function renderSingleSlide(
   slideIndex: number,
@@ -451,7 +521,8 @@ export async function renderSingleSlide(
   scale: number = 1,
   background: BackgroundConfig = DEFAULT_BACKGROUND,
   textOverlays: TextOverlay[] = [],
-  shapeOverlays: ShapeOverlay[] = []
+  shapeOverlays: ShapeOverlay[] = [],
+  layers?: Layer[]
 ): Promise<Blob> {
   scale = Math.min(3, Math.max(1, Math.round(scale)));
 
@@ -461,7 +532,8 @@ export async function renderSingleSlide(
 
   // We still render the full panoramic canvas so images/overlays positioned
   // across slides render correctly, then we clip just the requested slide.
-  const totalWidth = slideWidth * layout.slideCount;
+  const slideCount = layout.slideCount;
+  const totalWidth = slideWidth * slideCount;
   const totalHeight = slideHeight;
 
   const fullCanvas = document.createElement('canvas');
@@ -476,54 +548,38 @@ export async function renderSingleSlide(
   // Draw background
   drawBackground(fullCtx, background, totalWidth, totalHeight);
 
-  // Load and draw all images
-  for (const slot of layout.slots) {
-    const placedImage = images[slot.id];
-    if (placedImage) {
-      const img = await loadImage(placedImage.url);
-      const dx = (slot.x / 100) * totalWidth;
-      const dy = (slot.y / 100) * totalHeight;
-      const dw = (slot.width / 100) * totalWidth;
-      const dh = (slot.height / 100) * totalHeight;
+  const visibleLayers = layers?.filter((l) => l.visible);
 
-      // Apply image filters (blur is scaled to export resolution)
-      const blurScale = slideWidth / INSTAGRAM_WIDTH;
-      const filterStr = buildCssFilterString(placedImage.filters, blurScale);
-      if (filterStr !== 'none') {
-        fullCtx.save();
-        fullCtx.filter = filterStr;
-      }
-
-      drawImageCover(fullCtx, img, dx, dy, dw, dh, placedImage.offsetX, placedImage.offsetY, placedImage.scale);
-
-      if (filterStr !== 'none') {
-        fullCtx.restore();
-      }
+  if (visibleLayers && visibleLayers.length > 0) {
+    // Multi-layer path
+    for (const layer of visibleLayers) {
+      await drawLayerContent(
+        fullCtx,
+        layer.layout.slots,
+        layer.images,
+        layer.textOverlays,
+        layer.shapeOverlays,
+        totalWidth,
+        totalHeight,
+        slideWidth,
+        slideHeight,
+        scale
+      );
     }
-  }
-
-  // Wait for fonts
-  if (textOverlays.length > 0) {
-    await document.fonts.ready;
-  }
-
-  // Draw overlays in unified z-order
-  type OverlayEntry =
-    | { kind: 'text'; overlay: TextOverlay }
-    | { kind: 'shape'; overlay: ShapeOverlay };
-
-  const allOverlays: OverlayEntry[] = [
-    ...textOverlays.map((o) => ({ kind: 'text' as const, overlay: o })),
-    ...shapeOverlays.map((o) => ({ kind: 'shape' as const, overlay: o })),
-  ];
-  allOverlays.sort((a, b) => a.overlay.zIndex - b.overlay.zIndex);
-
-  for (const entry of allOverlays) {
-    if (entry.kind === 'text') {
-      drawTextOverlays(fullCtx, [entry.overlay], slideWidth, slideHeight, scale);
-    } else {
-      drawShapeOverlay(fullCtx, entry.overlay, slideWidth, slideHeight, scale);
-    }
+  } else {
+    // Single-layer path (preset layouts)
+    await drawLayerContent(
+      fullCtx,
+      layout.slots,
+      images,
+      textOverlays,
+      shapeOverlays,
+      totalWidth,
+      totalHeight,
+      slideWidth,
+      slideHeight,
+      scale
+    );
   }
 
   // Clip the requested slide

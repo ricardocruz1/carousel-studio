@@ -2,6 +2,7 @@ import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { LayoutPicker } from './components/LayoutPicker';
 import { CarouselEditor } from './components/CarouselEditor';
 import { CustomLayoutBuilder } from './components/CustomLayoutBuilder';
+import { LayerPanel } from './components/LayerPanel';
 import { AdGateModal } from './components/AdGateModal';
 
 /** Set to true once AdSense is approved and serving ads. */
@@ -94,6 +95,18 @@ const App: React.FC = () => {
     canUndo,
     canRedo,
     restoreState,
+    // Layer operations
+    addLayer,
+    removeLayer,
+    setActiveLayer,
+    toggleLayerVisibility,
+    renameLayer,
+    initCustomLayers,
+    // Layer-aware getters
+    getActiveImages,
+    getActiveTextOverlays,
+    getActiveShapeOverlays,
+    getActiveLayer,
   } = useEditorState();
 
   const { consumeExport } = useExportGate();
@@ -124,14 +137,17 @@ const App: React.FC = () => {
   const batchInputRef = useRef<HTMLInputElement>(null);
   const loadInputRef = useRef<HTMLInputElement>(null);
 
-  // Resolve the active layout: either a predefined one or the custom one
-  const selectedLayout = state.selectedLayoutId === 'custom'
-    ? customLayout
+  // Resolve the active layout: either a predefined one, the active layer's custom layout, or the legacy customLayout
+  const isCustomMode = state.selectedLayoutId === 'custom';
+  const selectedLayout = isCustomMode
+    ? (getActiveLayer()?.layout ?? customLayout)
     : state.selectedLayoutId
       ? getLayoutById(state.selectedLayoutId)
       : null;
 
-  const imageCount = Object.keys(state.images).length;
+  // For custom mode, image count comes from the active layer; for presets, from state.images
+  const activeImages = isCustomMode ? getActiveImages() : state.images;
+  const imageCount = Object.keys(activeImages).length;
   const allSlotsFilled = selectedLayout
     ? imageCount === selectedLayout.imageCount
     : false;
@@ -194,6 +210,17 @@ const App: React.FC = () => {
         textOverlays: saved.textOverlays ?? [],
         shapeOverlays: saved.shapeOverlays ?? [],
         currentSlide: saved.currentSlide ?? 0,
+        // Restore layers (images are empty — they can't be serialized to localStorage)
+        layers: (saved.layers ?? []).map((l: { id: string; name: string; layout: CarouselLayout; textOverlays?: TextOverlay[]; shapeOverlays?: ShapeOverlay[]; visible?: boolean }) => ({
+          id: l.id,
+          name: l.name,
+          layout: l.layout,
+          images: {},
+          textOverlays: l.textOverlays ?? [],
+          shapeOverlays: l.shapeOverlays ?? [],
+          visible: l.visible ?? true,
+        })),
+        activeLayerId: saved.activeLayerId ?? null,
       });
 
       // Lazy-load any Google Fonts from restored overlays
@@ -228,6 +255,17 @@ const App: React.FC = () => {
           shapeOverlays: state.shapeOverlays,
           currentSlide: state.currentSlide,
           customLayout: customLayout ?? null,
+          // Layer data (custom mode only — without File objects, just layout/overlay state)
+          layers: state.layers.map((l) => ({
+            id: l.id,
+            name: l.name,
+            layout: l.layout,
+            textOverlays: l.textOverlays,
+            shapeOverlays: l.shapeOverlays,
+            visible: l.visible,
+            // images can't be serialized (File/blob URLs), so skip them
+          })),
+          activeLayerId: state.activeLayerId,
         };
         localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(toSave));
       } catch {
@@ -245,6 +283,8 @@ const App: React.FC = () => {
     state.textOverlays,
     state.shapeOverlays,
     state.currentSlide,
+    state.layers,
+    state.activeLayerId,
     customLayout,
   ]);
 
@@ -255,16 +295,22 @@ const App: React.FC = () => {
     setExporting(true);
     setExportProgress(0);
 
+    // Use layer-aware data sources
+    const exportImages = isCustomMode ? getActiveImages() : state.images;
+    const exportTextOverlays = isCustomMode ? getActiveTextOverlays() : state.textOverlays;
+    const exportShapeOverlays = isCustomMode ? getActiveShapeOverlays() : state.shapeOverlays;
+
     try {
       await exportCarousel(
         selectedLayout,
-        state.images,
+        exportImages,
         state.aspectRatio,
         (progress) => setExportProgress(progress),
         exportScale,
         state.background,
-        state.textOverlays,
-        state.shapeOverlays,
+        exportTextOverlays,
+        exportShapeOverlays,
+        isCustomMode ? state.layers : undefined,
       );
       consumeExport();
       trackExport('zip', selectedLayout.slideCount, exportScale);
@@ -275,7 +321,7 @@ const App: React.FC = () => {
       setExporting(false);
       setExportProgress(null);
     }
-  }, [selectedLayout, allSlotsFilled, state.images, state.aspectRatio, state.background, state.textOverlays, state.shapeOverlays, setExporting, consumeExport, exportScale, showToast]);
+  }, [selectedLayout, allSlotsFilled, state.images, state.aspectRatio, state.background, state.textOverlays, state.shapeOverlays, state.layers, setExporting, consumeExport, exportScale, showToast, isCustomMode, getActiveImages, getActiveTextOverlays, getActiveShapeOverlays]);
 
   /** Share or copy the current slide */
   const [isSharing, setIsSharing] = useState(false);
@@ -283,16 +329,22 @@ const App: React.FC = () => {
   const handleShare = useCallback(async () => {
     if (!selectedLayout || !allSlotsFilled) return;
     setIsSharing(true);
+
+    const shareImages = isCustomMode ? getActiveImages() : state.images;
+    const shareTextOverlays = isCustomMode ? getActiveTextOverlays() : state.textOverlays;
+    const shareShapeOverlays = isCustomMode ? getActiveShapeOverlays() : state.shapeOverlays;
+
     try {
       const blob = await renderSingleSlide(
         state.currentSlide,
         selectedLayout,
-        state.images,
+        shareImages,
         state.aspectRatio,
         exportScale,
         state.background,
-        state.textOverlays,
-        state.shapeOverlays,
+        shareTextOverlays,
+        shareShapeOverlays,
+        isCustomMode ? state.layers : undefined,
       );
 
       // Mobile: Web Share API with file
@@ -342,7 +394,7 @@ const App: React.FC = () => {
     } finally {
       setIsSharing(false);
     }
-  }, [selectedLayout, allSlotsFilled, state.currentSlide, state.images, state.aspectRatio, state.background, state.textOverlays, state.shapeOverlays, exportScale, isMobile, showToast]);
+  }, [selectedLayout, allSlotsFilled, state.currentSlide, state.images, state.aspectRatio, state.background, state.textOverlays, state.shapeOverlays, state.layers, exportScale, isMobile, showToast, isCustomMode, getActiveImages, getActiveTextOverlays, getActiveShapeOverlays]);
 
   /** User clicks "Export Carousel" — show ad gate first (if ads enabled) */
   const handleExport = useCallback(() => {
@@ -371,6 +423,7 @@ const App: React.FC = () => {
 
   const handleBuilderFinish = (layout: CarouselLayout) => {
     setCustomLayout(layout);
+    initCustomLayers(layout);
     setIsBuilding(false);
     selectLayout('custom');
     trackLayoutSelected('custom', 'Custom');
@@ -393,6 +446,11 @@ const App: React.FC = () => {
   }, [setImage, selectedLayout]);
 
   const handleEditLayout = () => {
+    // When editing layout, pass the active layer's layout as the initial layout
+    const layerLayout = getActiveLayer()?.layout;
+    if (layerLayout) {
+      setCustomLayout(layerLayout);
+    }
     setIsBuilding(true);
   };
 
@@ -404,10 +462,12 @@ const App: React.FC = () => {
   // ─── Add Text Overlay ──────────────────────────────────
   const handleAddText = useCallback(() => {
     if (!selectedLayout) return;
-    // Compute the next z-index (above all existing overlays)
+    // Compute the next z-index (above all existing overlays on the active source)
+    const textOvls = isCustomMode ? getActiveTextOverlays() : state.textOverlays;
+    const shapeOvls = isCustomMode ? getActiveShapeOverlays() : state.shapeOverlays;
     const allZ = [
-      ...state.textOverlays.map((o) => o.zIndex ?? 0),
-      ...state.shapeOverlays.map((o) => o.zIndex ?? 0),
+      ...textOvls.map((o) => o.zIndex ?? 0),
+      ...shapeOvls.map((o) => o.zIndex ?? 0),
     ];
     const nextZ = allZ.length > 0 ? Math.max(...allZ) + 1 : 1;
 
@@ -430,7 +490,7 @@ const App: React.FC = () => {
     };
     addTextOverlay(overlay);
     trackTextOverlayAdded();
-  }, [selectedLayout, state.currentSlide, state.textOverlays, state.shapeOverlays, addTextOverlay]);
+  }, [selectedLayout, state.currentSlide, state.textOverlays, state.shapeOverlays, addTextOverlay, isCustomMode, getActiveTextOverlays, getActiveShapeOverlays]);
 
   // ─── Add Shape Overlay ─────────────────────────────────
   const [showShapeDropdown, setShowShapeDropdown] = useState(false);
@@ -452,9 +512,11 @@ const App: React.FC = () => {
     if (!selectedLayout) return;
     setShowShapeDropdown(false);
 
+    const textOvls = isCustomMode ? getActiveTextOverlays() : state.textOverlays;
+    const shapeOvls = isCustomMode ? getActiveShapeOverlays() : state.shapeOverlays;
     const allZ = [
-      ...state.textOverlays.map((o) => o.zIndex ?? 0),
-      ...state.shapeOverlays.map((o) => o.zIndex ?? 0),
+      ...textOvls.map((o) => o.zIndex ?? 0),
+      ...shapeOvls.map((o) => o.zIndex ?? 0),
     ];
     const nextZ = allZ.length > 0 ? Math.max(...allZ) + 1 : 1;
 
@@ -486,7 +548,7 @@ const App: React.FC = () => {
     };
     addShapeOverlay(shape);
     trackShapeOverlayAdded();
-  }, [selectedLayout, state.currentSlide, state.textOverlays, state.shapeOverlays, addShapeOverlay]);
+  }, [selectedLayout, state.currentSlide, state.textOverlays, state.shapeOverlays, state.aspectRatio, addShapeOverlay, isCustomMode, getActiveTextOverlays, getActiveShapeOverlays]);
 
   // ─── Batch Upload ──────────────────────────────────────
   const handleBatchUpload = useCallback(() => {
@@ -547,7 +609,7 @@ const App: React.FC = () => {
         if (project.customLayout) {
           setCustomLayout(project.customLayout as CarouselLayout);
         }
-        // Restore state
+        // Restore state (including layers if present)
         restoreState({
           selectedLayoutId: project.layoutId,
           aspectRatio: project.aspectRatio,
@@ -556,12 +618,24 @@ const App: React.FC = () => {
           shapeOverlays: project.shapeOverlays,
           images: project.images,
           currentSlide: 0,
+          ...(project.layers ? { layers: project.layers, activeLayerId: project.activeLayerId ?? null } : {}),
         });
 
         // Lazy-load any Google Fonts used by text overlays in the project
+        const allFontFamilies: string[] = [];
         if (project.textOverlays && project.textOverlays.length > 0) {
-          const families = project.textOverlays.map((o: TextOverlay) => o.fontFamily);
-          loadFontsForFamilies(families);
+          allFontFamilies.push(...project.textOverlays.map((o: TextOverlay) => o.fontFamily));
+        }
+        // Also collect fonts from layers
+        if (project.layers) {
+          for (const layer of project.layers) {
+            if (layer.textOverlays && layer.textOverlays.length > 0) {
+              allFontFamilies.push(...layer.textOverlays.map((o: TextOverlay) => o.fontFamily));
+            }
+          }
+        }
+        if (allFontFamilies.length > 0) {
+          loadFontsForFamilies(allFontFamilies);
         }
 
         trackProjectLoaded();
@@ -965,30 +1039,47 @@ const App: React.FC = () => {
         {/* -- Editor (full width, below) -------------- */}
         <section className="app__editor">
           {selectedLayout ? (
-            <CarouselEditor
-              layout={selectedLayout}
-              images={state.images}
-              currentSlide={state.currentSlide}
-              aspectRatio={state.aspectRatio}
-              background={state.background}
-              textOverlays={state.textOverlays}
-              shapeOverlays={state.shapeOverlays}
-              onSetImage={handleSetImage}
-              onRemoveImage={removeImage}
-              onSetCurrentSlide={setCurrentSlide}
-              onUpdateTextOverlay={updateTextOverlay}
-              onUpdateTextOverlayNoHistory={updateTextOverlayNoHistory}
-              onPushHistorySnapshot={pushHistorySnapshot}
-              onRemoveTextOverlay={removeTextOverlay}
-              onUpdateShapeOverlay={updateShapeOverlay}
-              onUpdateShapeOverlayNoHistory={updateShapeOverlayNoHistory}
-              onRemoveShapeOverlay={removeShapeOverlay}
-              onBringForward={bringForward}
-              onSendBackward={sendBackward}
-              onUpdateImageOffsetNoHistory={updateImageOffsetNoHistory}
-              onPushImageHistorySnapshot={pushHistorySnapshot}
-              onUpdateImageFilters={updateImageFilters}
-            />
+            <div className={`app__editor-row ${isCustomMode ? 'app__editor-row--with-layers' : ''}`}>
+              <CarouselEditor
+                layout={selectedLayout}
+                images={isCustomMode ? getActiveImages() : state.images}
+                currentSlide={state.currentSlide}
+                aspectRatio={state.aspectRatio}
+                background={state.background}
+                textOverlays={isCustomMode ? getActiveTextOverlays() : state.textOverlays}
+                shapeOverlays={isCustomMode ? getActiveShapeOverlays() : state.shapeOverlays}
+                allLayers={isCustomMode ? state.layers : undefined}
+                activeLayerId={isCustomMode ? state.activeLayerId : undefined}
+                onSetImage={handleSetImage}
+                onRemoveImage={removeImage}
+                onSetCurrentSlide={setCurrentSlide}
+                onUpdateTextOverlay={updateTextOverlay}
+                onUpdateTextOverlayNoHistory={updateTextOverlayNoHistory}
+                onPushHistorySnapshot={pushHistorySnapshot}
+                onRemoveTextOverlay={removeTextOverlay}
+                onUpdateShapeOverlay={updateShapeOverlay}
+                onUpdateShapeOverlayNoHistory={updateShapeOverlayNoHistory}
+                onRemoveShapeOverlay={removeShapeOverlay}
+                onBringForward={bringForward}
+                onSendBackward={sendBackward}
+                onUpdateImageOffsetNoHistory={updateImageOffsetNoHistory}
+                onPushImageHistorySnapshot={pushHistorySnapshot}
+                onUpdateImageFilters={updateImageFilters}
+              />
+              {/* Layer Panel: desktop sidebar / mobile pill */}
+              {isCustomMode && state.layers.length > 0 && (
+                <LayerPanel
+                  layers={state.layers}
+                  activeLayerId={state.activeLayerId}
+                  isMobile={isMobile}
+                  onSelectLayer={setActiveLayer}
+                  onAddLayer={addLayer}
+                  onRemoveLayer={removeLayer}
+                  onToggleVisibility={toggleLayerVisibility}
+                  onRenameLayer={renameLayer}
+                />
+              )}
+            </div>
           ) : (
             <div className="app__empty">
               <svg width="64" height="64" viewBox="0 0 64 64" fill="none">

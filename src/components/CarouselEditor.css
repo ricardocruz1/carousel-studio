@@ -363,3 +363,21 @@
   left: 0;
   right: 0;
 }
+
+/* ─── Inactive Layer (multi-layer, dimmed) ─────────────────── */
+
+.carousel-editor__inactive-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Inactive image slots — no interactivity, no hover effects */
+.image-slot--inactive {
+  cursor: default;
+  touch-action: auto;
+}
+
+.image-slot--inactive .image-slot__overlay {
+  display: none;
+}

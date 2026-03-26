@@ -606,6 +606,33 @@ body {
   width: 100%;
 }
 
+/* Editor + Layer Panel row layout */
+.app__editor-row {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.app__editor-row--with-layers {
+  gap: 12px;
+  align-items: flex-start;
+}
+
+/* On desktop: carousel takes remaining space, panel is fixed width sidebar */
+.app__editor-row--with-layers > .carousel-editor {
+  flex: 1;
+  min-width: 0;
+}
+
+/* On mobile: stack vertically, pill above canvas */
+@media (pointer: coarse) {
+  .app__editor-row--with-layers {
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
 /* ─── Export Warning ─────────────────────────────────────── */
 
 .app__canvas-warning {

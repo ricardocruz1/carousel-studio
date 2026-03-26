@@ -1,0 +1,250 @@
+/* ─── Layer Panel (shared) ─────────────────────────────── */
+
+.layer-panel__header,
+.layer-panel__popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 8px;
+}
+
+.layer-panel__title,
+.layer-panel__popover-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ─── Layer List ───────────────────────────────────────── */
+
+.layer-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.layer-panel__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border: 1.5px solid transparent;
+}
+
+.layer-panel__item:hover {
+  background: var(--accent-light);
+}
+
+.layer-panel__item--active {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+
+/* ─── Visibility Toggle ───────────────────────────────── */
+
+.layer-panel__visibility {
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.layer-panel__visibility:hover {
+  color: var(--text-primary);
+  background: var(--accent-light);
+}
+
+/* ─── Layer Info ───────────────────────────────────────── */
+
+.layer-panel__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.layer-panel__name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layer-panel__meta {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.layer-panel__rename-input {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 1px 4px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--text-primary);
+  outline: none;
+  width: 100%;
+}
+
+/* ─── Delete Button ───────────────────────────────────── */
+
+.layer-panel__delete {
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.layer-panel__item:hover .layer-panel__delete {
+  opacity: 1;
+}
+
+.layer-panel__delete:hover {
+  color: var(--danger);
+  background: rgba(255, 71, 87, 0.1);
+}
+
+/* ─── Add Button ──────────────────────────────────────── */
+
+.layer-panel__add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 8px;
+  margin-top: 6px;
+  border-radius: 6px;
+  border: 1px dashed var(--border);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  width: 100%;
+}
+
+.layer-panel__add:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+.layer-panel__add:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ─── Desktop Sidebar ─────────────────────────────────── */
+
+.layer-panel--desktop {
+  width: 160px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+/* ─── Mobile: Pill + Popover ──────────────────────────── */
+
+.layer-panel--mobile {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.layer-panel__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.layer-panel__pill:hover,
+.layer-panel__pill:active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.layer-panel__pill-count {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.layer-panel__popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 200px;
+  max-width: 260px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+}
+
+html.dark .layer-panel__popover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── Touch targets ───────────────────────────────────── */
+
+@media (pointer: coarse) {
+  .layer-panel__item {
+    padding: 10px 8px;
+  }
+
+  .layer-panel__visibility,
+  .layer-panel__delete {
+    padding: 6px;
+    /* Always show delete on mobile since there's no hover */
+    opacity: 1;
+  }
+
+  .layer-panel__pill {
+    padding: 10px 18px;
+    font-size: 13px;
+  }
+
+  .layer-panel__add {
+    padding: 10px 8px;
+  }
+}
