@@ -425,7 +425,6 @@ const App: React.FC = () => {
     setCustomLayout(layout);
     initCustomLayers(layout);
     setIsBuilding(false);
-    selectLayout('custom');
     trackLayoutSelected('custom', 'Custom');
   };
 

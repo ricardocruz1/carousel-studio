@@ -571,8 +571,8 @@ export function useEditorState() {
   /** Initialize layers when entering custom mode (called from App after builder finishes). */
   const initCustomLayers = useCallback((layout: CarouselLayout) => {
     setState((prev) => {
-      if (prev.layers.length > 0) {
-        // Already has layers — update the active layer's layout
+      if (prev.layers.length > 0 && prev.selectedLayoutId === 'custom') {
+        // Already has layers in custom mode — update the active layer's layout
         return updateActiveLayer(prev, (layer) => ({
           ...layer,
           layout,
@@ -585,7 +585,7 @@ export function useEditorState() {
           ),
         }));
       }
-      // First time — create layer 1 with this layout
+      // First time or switching to custom — create layer 1 with this layout
       const layer1: Layer = {
         id: 'layer-1',
         name: 'Layer 1',
@@ -595,7 +595,12 @@ export function useEditorState() {
         shapeOverlays: [],
         visible: true,
       };
-      return { ...prev, layers: [layer1], activeLayerId: 'layer-1' };
+      return {
+        ...prev,
+        selectedLayoutId: 'custom',
+        layers: [layer1],
+        activeLayerId: 'layer-1',
+      };
     });
   }, []);
 
