@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { CarouselLayout, ImageSlot, AspectRatio } from '../types';
-import { ASPECT_RATIOS } from '../types';
+import { ASPECT_RATIOS, MAX_LAYERS } from '../types';
+import { LayerPanel } from './LayerPanel';
 import './CustomLayoutBuilder.css';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -34,6 +35,20 @@ interface CustomSlot {
   rowSpan: number;
 }
 
+/** Internal layer representation in the builder */
+interface BuilderLayer {
+  id: string;
+  name: string;
+  slots: CustomSlot[];
+}
+
+/** Data for a single layer as passed to/from the builder */
+export interface BuilderLayerData {
+  id: string;
+  name: string;
+  layout: CarouselLayout;
+}
+
 type ResizeHandle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 
 type Interaction =
@@ -57,9 +72,10 @@ type Interaction =
     };
 
 interface Props {
-  onFinish: (layout: CarouselLayout) => void;
+  onFinish: (layers: BuilderLayerData[]) => void;
   onCancel: () => void;
-  initialLayout?: CarouselLayout;
+  /** Initial layers for editing. If provided, each layer's layout is converted to internal slots. */
+  initialLayers?: BuilderLayerData[];
   aspectRatio: AspectRatio;
 }
 
@@ -123,7 +139,7 @@ const HANDLE_CURSORS: Record<ResizeHandle, string> = {
 export const CustomLayoutBuilder: React.FC<Props> = ({
   onFinish,
   onCancel,
-  initialLayout,
+  initialLayers,
   aspectRatio,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -133,18 +149,44 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
   // Grid rows based on aspect ratio
   const ROWS = ASPECT_RATIOS[aspectRatio].gridRows;
 
+  // ─── Helper: convert initial layers to BuilderLayer[] ──
+  const initLayers = useCallback((): BuilderLayer[] => {
+    if (initialLayers && initialLayers.length > 0) {
+      return initialLayers.map((l) => ({
+        id: l.id,
+        name: l.name,
+        slots: layoutToCustomSlots(l.layout, ROWS),
+      }));
+    }
+    // Default: one empty layer
+    return [{ id: 'layer-1', name: 'Layer 1', slots: [] }];
+  }, [initialLayers, ROWS]);
+
+  const initSlideCount = (): number => {
+    if (initialLayers && initialLayers.length > 0) {
+      return initialLayers[0].layout.slideCount;
+    }
+    return 2;
+  };
+
   // ─── State ──────────────────────────────────────────────
-  const [slideCount, setSlideCount] = useState(() => initialLayout?.slideCount ?? 2);
-  const [slots, setSlots] = useState<CustomSlot[]>(() =>
-    initialLayout ? layoutToCustomSlots(initialLayout, ROWS) : []
+  const [slideCount, setSlideCount] = useState(initSlideCount);
+  const [layers, setLayers] = useState<BuilderLayer[]>(initLayers);
+  const [activeLayerId, setActiveLayerId] = useState<string>(() =>
+    initialLayers && initialLayers.length > 0 ? initialLayers[0].id : 'layer-1'
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawMode, setDrawMode] = useState(false);
   const [interaction, setInteraction] = useState<Interaction>({ type: 'idle' });
   const [mouseGrid, setMouseGrid] = useState<{ col: number; row: number } | null>(null);
-  const [nextId, setNextId] = useState(() =>
-    initialLayout ? initialLayout.slots.length + 1 : 1
-  );
+  const [nextId, setNextId] = useState(() => {
+    // Start the ID counter after the max existing slot count across all layers
+    if (initialLayers && initialLayers.length > 0) {
+      const maxSlots = Math.max(...initialLayers.map((l) => l.layout.slots.length));
+      return maxSlots + 1;
+    }
+    return 1;
+  });
 
   // ─── Detect mobile (coarse pointer = touch device) ─────
   const [isMobile, setIsMobile] = useState(() =>
@@ -157,6 +199,28 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
+
+  // ─── Active layer derived state ────────────────────────
+  const activeLayer = layers.find((l) => l.id === activeLayerId);
+  const slots = activeLayer?.slots ?? [];
+
+  // Helper to update the active layer's slots
+  const setActiveSlots = useCallback((updater: (prev: CustomSlot[]) => CustomSlot[]) => {
+    setLayers((prevLayers) =>
+      prevLayers.map((l) =>
+        l.id === activeLayerId ? { ...l, slots: updater(l.slots) } : l
+      )
+    );
+  }, [activeLayerId]);
+
+  // Helper to set the active layer's slots directly
+  const replaceActiveSlots = useCallback((newSlots: CustomSlot[]) => {
+    setLayers((prevLayers) =>
+      prevLayers.map((l) =>
+        l.id === activeLayerId ? { ...l, slots: newSlots } : l
+      )
+    );
+  }, [activeLayerId]);
 
   // ─── Computed ───────────────────────────────────────────
   const totalCols = slideCount * COLS_PER_SLIDE;
@@ -369,7 +433,7 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
         colSpan,
         rowSpan,
       };
-      setSlots((prev) => [...prev, newSlot]);
+      setActiveSlots((prev) => [...prev, newSlot]);
       setNextId((n) => n + 1);
       setSelectedId(newSlot.id);
     }
@@ -381,7 +445,7 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
       drawStartRef.current = null;
       const dist = start ? Math.hypot(e.clientX - start.x, e.clientY - start.y) : 0;
       if (dist >= 10) {
-        setSlots(visualSlots);
+        replaceActiveSlots(visualSlots);
       }
     }
 
@@ -402,7 +466,7 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
         if ((e.target as HTMLElement).tagName === 'INPUT') return;
-        setSlots((prev) => prev.filter((s) => s.id !== selectedId));
+        setActiveSlots((prev) => prev.filter((s) => s.id !== selectedId));
         setSelectedId(null);
       }
     };
@@ -416,13 +480,17 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
     const newCount = clamp(slideCount + delta, MIN_SLIDES, MAX_SLIDES);
     if (newCount < slideCount) {
       const newTotalCols = newCount * COLS_PER_SLIDE;
-      setSlots((prev) =>
-        prev
-          .filter((s) => s.col < newTotalCols)
-          .map((s) => ({
-            ...s,
-            colSpan: Math.min(s.colSpan, newTotalCols - s.col),
-          }))
+      // Remove out-of-bounds slots from ALL layers
+      setLayers((prevLayers) =>
+        prevLayers.map((l) => ({
+          ...l,
+          slots: l.slots
+            .filter((s) => s.col < newTotalCols)
+            .map((s) => ({
+              ...s,
+              colSpan: Math.min(s.colSpan, newTotalCols - s.col),
+            })),
+        }))
       );
     }
     setSlideCount(newCount);
@@ -430,22 +498,92 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
   };
 
   const handleDeleteSlot = (id: string) => {
-    setSlots((prev) => prev.filter((s) => s.id !== id));
+    setActiveSlots((prev) => prev.filter((s) => s.id !== id));
     if (selectedId === id) setSelectedId(null);
   };
 
   const handleClearAll = () => {
-    setSlots([]);
+    setActiveSlots(() => []);
     setSelectedId(null);
     setDrawMode(false);
   };
 
   const handleFinish = () => {
-    if (slots.length === 0) return;
-    onFinish(convertToLayout(slots, slideCount, ROWS));
+    // At least one layer must have slots
+    const hasAnySlots = layers.some((l) => l.slots.length > 0);
+    if (!hasAnySlots) return;
+
+    const layerData: BuilderLayerData[] = layers.map((l) => ({
+      id: l.id,
+      name: l.name,
+      layout: convertToLayout(l.slots, slideCount, ROWS),
+    }));
+    onFinish(layerData);
   };
 
+  // ─── Layer Management ──────────────────────────────────
+  const handleAddLayer = useCallback(() => {
+    if (layers.length >= MAX_LAYERS) return;
+    const nextNum = layers.length + 1;
+    const newId = `layer-${Date.now()}`;
+    const newLayer: BuilderLayer = { id: newId, name: `Layer ${nextNum}`, slots: [] };
+    setLayers((prev) => [...prev, newLayer]);
+    setActiveLayerId(newId);
+    setSelectedId(null);
+    setDrawMode(false);
+  }, [layers.length]);
+
+  const handleRemoveLayer = useCallback((layerId: string) => {
+    if (layers.length <= 1) return;
+    setLayers((prev) => {
+      const newLayers = prev.filter((l) => l.id !== layerId);
+      // If we removed the active layer, select the last remaining
+      if (activeLayerId === layerId) {
+        setActiveLayerId(newLayers[newLayers.length - 1].id);
+      }
+      return newLayers;
+    });
+    setSelectedId(null);
+  }, [layers.length, activeLayerId]);
+
+  const handleSelectLayer = useCallback((layerId: string) => {
+    setActiveLayerId(layerId);
+    setSelectedId(null);
+    setDrawMode(false);
+  }, []);
+
+  const handleRenameLayer = useCallback((layerId: string, name: string) => {
+    setLayers((prev) =>
+      prev.map((l) => l.id === layerId ? { ...l, name } : l)
+    );
+  }, []);
+
+  // Layers as Layer-like objects for the LayerPanel (need a `layout` and `visible` field)
+  const layerPanelData = useMemo(() =>
+    layers.map((l) => ({
+      id: l.id,
+      name: l.name,
+      layout: convertToLayout(l.slots, slideCount, ROWS),
+      images: {} as Record<string, never>,
+      textOverlays: [],
+      shapeOverlays: [],
+      visible: true,
+    })),
+    [layers, slideCount, ROWS]
+  );
+
+  // Compute inactive layers' slots for dimmed rendering
+  const inactiveLayerSlots = useMemo(() => {
+    return layers
+      .filter((l) => l.id !== activeLayerId)
+      .flatMap((l) =>
+        l.slots.map((s, i) => ({ ...s, layerName: l.name, globalIndex: i }))
+      );
+  }, [layers, activeLayerId]);
+
   // ─── Render ─────────────────────────────────────────────
+
+  const totalSlotCount = layers.reduce((sum, l) => sum + l.slots.length, 0);
 
   return (
     <div className="builder">
@@ -521,12 +659,13 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ── Canvas ──────────────────────────────────────── */}
-      <div className="builder__canvas-wrapper">
-        <div
-          className="builder__canvas-scroll"
-          style={{ height: canvasHeight + 64 }}
-        >
+      {/* ── Canvas + Layer Panel Row ───────────────────── */}
+      <div className="builder__body">
+        <div className="builder__canvas-wrapper">
+          <div
+            className="builder__canvas-scroll"
+            style={{ height: canvasHeight + 64 }}
+          >
           {/* Slide labels above canvas */}
           <div
             className="builder__slide-labels"
@@ -616,7 +755,27 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
                 />
               )}
 
-            {/* Slots */}
+            {/* Inactive layers' slots (dimmed, non-interactive) */}
+            {inactiveLayerSlots.map((slot) => (
+              <div
+                key={`inactive-${slot.id}-${slot.layerName}`}
+                className="builder__slot builder__slot--inactive"
+                style={{
+                  left: slot.col * cellSize,
+                  top: slot.row * cellSize,
+                  width: slot.colSpan * cellSize,
+                  height: slot.rowSpan * cellSize,
+                  '--slot-color': '#888',
+                  '--slot-bg': 'rgba(128,128,128,0.08)',
+                } as React.CSSProperties}
+              >
+                <span className="builder__slot-number" style={{ opacity: 0.4 }}>
+                  {slot.globalIndex + 1}
+                </span>
+              </div>
+            ))}
+
+            {/* Active layer slots */}
             {visualSlots.map((slot, index) => {
               const isSelected = slot.id === selectedId;
               const color = slotColor(index);
@@ -710,17 +869,51 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
         </div>
       </div>
 
+        {/* ── Layer Panel (inside builder) ──────────────── */}
+        {!isMobile && (
+          <LayerPanel
+            layers={layerPanelData}
+            activeLayerId={activeLayerId}
+            isMobile={false}
+            mode="builder"
+            onSelectLayer={handleSelectLayer}
+            onAddLayer={handleAddLayer}
+            onRemoveLayer={handleRemoveLayer}
+            onToggleVisibility={() => {/* visibility not used in builder */}}
+            onRenameLayer={handleRenameLayer}
+          />
+        )}
+      </div>
+
+      {/* Mobile layer panel (below canvas) */}
+      {isMobile && (
+        <LayerPanel
+          layers={layerPanelData}
+          activeLayerId={activeLayerId}
+          isMobile={true}
+          mode="builder"
+          onSelectLayer={handleSelectLayer}
+          onAddLayer={handleAddLayer}
+          onRemoveLayer={handleRemoveLayer}
+          onToggleVisibility={() => {/* visibility not used in builder */}}
+          onRenameLayer={handleRenameLayer}
+        />
+      )}
+
       {/* ── Footer ──────────────────────────────────────── */}
       <div className="builder__footer">
         <div className="builder__footer-info">
           {slots.length === 0 ? (
             <span className="builder__hint-text">
-              Design your custom carousel layout
+              {layers.length > 1
+                ? `${activeLayer?.name ?? 'Layer'}: Draw slots for this layer`
+                : 'Design your custom carousel layout'}
             </span>
           ) : (
             <span className="builder__count-text">
-              {slots.length} photo{slots.length !== 1 ? 's' : ''} &middot;{' '}
+              {activeLayer?.name ?? 'Layer'}: {slots.length} slot{slots.length !== 1 ? 's' : ''} &middot;{' '}
               {slideCount} slide{slideCount !== 1 ? 's' : ''}
+              {layers.length > 1 && ` \u00B7 ${totalSlotCount} total across ${layers.length} layers`}
               {selectedId &&
                 !drawMode &&
                 (isMobile
@@ -740,7 +933,7 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
           <button
             className="builder__action-btn builder__action-btn--finish"
             onClick={handleFinish}
-            disabled={slots.length === 0}
+            disabled={totalSlotCount === 0}
           >
             Use This Layout
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

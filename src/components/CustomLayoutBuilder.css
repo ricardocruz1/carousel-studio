@@ -7,6 +7,23 @@
   width: 100%;
 }
 
+/* ─── Builder Body (canvas + layer panel side-by-side) ───────────────────── */
+
+.builder__body {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.builder__body > .builder__canvas-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.builder__body > .layer-panel--desktop {
+  flex-shrink: 0;
+}
+
 /* ─── Toolbar ────────────────────────────────────────────────────────────── */
 
 .builder__toolbar {
@@ -313,6 +330,14 @@
   opacity: 0.85;
 }
 
+/* Inactive layer slots (dimmed, non-interactive) */
+.builder__slot--inactive {
+  opacity: 0.3;
+  pointer-events: none;
+  border-style: dashed;
+  z-index: 0;
+}
+
 .builder__slot-number {
   font-size: 0.85rem;
   font-weight: 700;
@@ -542,6 +567,10 @@
   .builder__toolbar-left,
   .builder__toolbar-right {
     justify-content: center;
+  }
+
+  .builder__body {
+    flex-direction: column;
   }
 
   .builder__footer {

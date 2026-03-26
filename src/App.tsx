@@ -2,6 +2,7 @@ import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { LayoutPicker } from './components/LayoutPicker';
 import { CarouselEditor } from './components/CarouselEditor';
 import { CustomLayoutBuilder } from './components/CustomLayoutBuilder';
+import type { BuilderLayerData } from './components/CustomLayoutBuilder';
 import { LayerPanel } from './components/LayerPanel';
 import { AdGateModal } from './components/AdGateModal';
 
@@ -96,12 +97,10 @@ const App: React.FC = () => {
     canRedo,
     restoreState,
     // Layer operations
-    addLayer,
-    removeLayer,
     setActiveLayer,
     toggleLayerVisibility,
     renameLayer,
-    initCustomLayers,
+    initCustomLayersFromBuilder,
     // Layer-aware getters
     getActiveImages,
     getActiveTextOverlays,
@@ -421,9 +420,12 @@ const App: React.FC = () => {
     setIsBuilding(true);
   };
 
-  const handleBuilderFinish = (layout: CarouselLayout) => {
-    setCustomLayout(layout);
-    initCustomLayers(layout);
+  const handleBuilderFinish = (builderLayers: BuilderLayerData[]) => {
+    // Store the first layer's layout as the legacy customLayout for backward compat
+    if (builderLayers.length > 0) {
+      setCustomLayout(builderLayers[0].layout);
+    }
+    initCustomLayersFromBuilder(builderLayers);
     setIsBuilding(false);
     trackLayoutSelected('custom', 'Custom');
   };
@@ -445,11 +447,7 @@ const App: React.FC = () => {
   }, [setImage, selectedLayout]);
 
   const handleEditLayout = () => {
-    // When editing layout, pass the active layer's layout as the initial layout
-    const layerLayout = getActiveLayer()?.layout;
-    if (layerLayout) {
-      setCustomLayout(layerLayout);
-    }
+    // Pass all current layers to the builder for editing
     setIsBuilding(true);
   };
 
@@ -672,7 +670,13 @@ const App: React.FC = () => {
           <CustomLayoutBuilder
             onFinish={handleBuilderFinish}
             onCancel={handleBuilderCancel}
-            initialLayout={customLayout ?? undefined}
+            initialLayers={
+              state.layers.length > 0
+                ? state.layers.map((l) => ({ id: l.id, name: l.name, layout: l.layout }))
+                : customLayout
+                  ? [{ id: 'layer-1', name: 'Layer 1', layout: customLayout }]
+                  : undefined
+            }
             aspectRatio={state.aspectRatio}
           />
         </main>
@@ -1066,19 +1070,13 @@ const App: React.FC = () => {
                 onUpdateImageFilters={updateImageFilters}
               />
               {/* Layer Panel: desktop sidebar / mobile pill */}
-              {isCustomMode && (
-                <div style={{ padding: '12px', background: '#6c5ce7', color: 'white', borderRadius: '8px', fontSize: '14px', fontWeight: 600 }}>
-                  Layers: {state.layers.length} | Active: {state.activeLayerId ?? 'none'}
-                </div>
-              )}
               {isCustomMode && state.layers.length > 0 && (
                 <LayerPanel
                   layers={state.layers}
                   activeLayerId={state.activeLayerId}
                   isMobile={isMobile}
+                  mode="editor"
                   onSelectLayer={setActiveLayer}
-                  onAddLayer={addLayer}
-                  onRemoveLayer={removeLayer}
                   onToggleVisibility={toggleLayerVisibility}
                   onRenameLayer={renameLayer}
                 />

@@ -7,9 +7,12 @@ interface LayerPanelProps {
   layers: Layer[];
   activeLayerId: string | null;
   isMobile: boolean;
+  /** 'builder' = full CRUD (add/remove/rename/select/toggle).
+   *  'editor' = read-only structure (select/toggle visibility/rename only, no add/remove). */
+  mode?: 'builder' | 'editor';
   onSelectLayer: (layerId: string) => void;
-  onAddLayer: () => void;
-  onRemoveLayer: (layerId: string) => void;
+  onAddLayer?: () => void;
+  onRemoveLayer?: (layerId: string) => void;
   onToggleVisibility: (layerId: string) => void;
   onRenameLayer: (layerId: string, name: string) => void;
 }
@@ -33,12 +36,14 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
   layers,
   activeLayerId,
   isMobile,
+  mode = 'editor',
   onSelectLayer,
   onAddLayer,
   onRemoveLayer,
   onToggleVisibility,
   onRenameLayer,
 }) => {
+  const isBuilder = mode === 'builder';
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -142,7 +147,7 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
               </span>
             </div>
 
-            {layers.length > 1 && (
+            {isBuilder && layers.length > 1 && onRemoveLayer && (
               <button
                 className="layer-panel__delete"
                 onClick={(e) => { e.stopPropagation(); onRemoveLayer(layer.id); }}
@@ -160,7 +165,7 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
     </div>
   );
 
-  const addButton = (
+  const addButton = isBuilder && onAddLayer ? (
     <button
       className="layer-panel__add"
       onClick={onAddLayer}
@@ -172,7 +177,7 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
       </svg>
       Add Layer
     </button>
-  );
+  ) : null;
 
   // ─── Mobile: Floating pill + popover ───────────────────
   if (isMobile) {

@@ -604,6 +604,52 @@ export function useEditorState() {
     });
   }, []);
 
+  /**
+   * Initialize or update ALL layers from the builder's multi-layer output.
+   * Merges with existing layers: preserves images/overlays for layers that still exist,
+   * creates new layers, removes layers that were deleted in the builder.
+   */
+  const initCustomLayersFromBuilder = useCallback((builderLayers: Array<{ id: string; name: string; layout: CarouselLayout }>) => {
+    setState((prev) => {
+      const existingMap = new Map(prev.layers.map((l) => [l.id, l]));
+
+      const newLayers: Layer[] = builderLayers.map((bl) => {
+        const existing = existingMap.get(bl.id);
+        if (existing) {
+          // Preserve images/overlays, update layout and name
+          return {
+            ...existing,
+            name: bl.name,
+            layout: bl.layout,
+            // Re-key images: remove any that no longer have matching slots
+            images: Object.fromEntries(
+              Object.entries(existing.images).filter(([slotId]) =>
+                bl.layout.slots.some((s) => s.id === slotId)
+              )
+            ),
+          };
+        }
+        // New layer created in the builder
+        return {
+          id: bl.id,
+          name: bl.name,
+          layout: bl.layout,
+          images: {},
+          textOverlays: [],
+          shapeOverlays: [],
+          visible: true,
+        };
+      });
+
+      return {
+        ...prev,
+        selectedLayoutId: 'custom',
+        layers: newLayers,
+        activeLayerId: newLayers[0]?.id ?? null,
+      };
+    });
+  }, []);
+
   /** Update slide count across ALL layers (must stay in sync). */
   const setLayersSlideCount = useCallback((slideCount: number) => {
     setState((prev) => ({
@@ -678,6 +724,7 @@ export function useEditorState() {
     reorderLayers,
     setActiveLayerLayout,
     initCustomLayers,
+    initCustomLayersFromBuilder,
     setLayersSlideCount,
     // ─── Layer-aware getters ──────────
     getActiveImages: () => getActiveImages(state),
