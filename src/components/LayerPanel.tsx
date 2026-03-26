@@ -97,14 +97,12 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
   }, [commitRename]);
 
   // Render the layer list (used in both desktop sidebar and mobile popover)
-  // Reversed so top = frontmost layer
-  const reversedLayers = [...layers].reverse();
-
+  // Natural order: Layer 1 (background) at top, frontmost layer at bottom
   const layerList = (
     <div className="layer-panel__list">
-      {reversedLayers.map((layer, i) => {
+      {layers.map((layer, i) => {
         const isActive = layer.id === activeLayerId;
-        const isBottom = i === reversedLayers.length - 1;
+        const isBackground = i === 0;
         return (
           <div
             key={layer.id}
@@ -143,7 +141,7 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
               )}
               <span className="layer-panel__meta">
                 {layer.layout.slots.length} slot{layer.layout.slots.length !== 1 ? 's' : ''}
-                {isBottom ? ' (bg)' : ''}
+                {isBackground ? ' (bg)' : ''}
               </span>
             </div>
 

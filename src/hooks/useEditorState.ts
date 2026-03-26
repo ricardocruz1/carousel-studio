@@ -505,7 +505,13 @@ export function useEditorState() {
   const addLayer = useCallback(() => {
     updateWithHistory((prev) => {
       if (!isCustom(prev) || prev.layers.length >= MAX_LAYERS) return prev;
-      const nextNum = prev.layers.length + 1;
+      // Find the next available layer number (fills gaps after deletions)
+      const usedNumbers = prev.layers.map((l) => {
+        const match = l.name.match(/^Layer (\d+)$/);
+        return match ? parseInt(match[1], 10) : 0;
+      });
+      let nextNum = 1;
+      while (usedNumbers.includes(nextNum)) nextNum++;
       // Inherit slide count from layer 1 (all layers must have the same slide count)
       const slideCount = prev.layers[0]?.layout.slideCount ?? 2;
       const newLayer = createDefaultLayer(`layer-${Date.now()}`, `Layer ${nextNum}`, slideCount);

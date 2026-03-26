@@ -524,14 +524,20 @@ export const CustomLayoutBuilder: React.FC<Props> = ({
   // ─── Layer Management ──────────────────────────────────
   const handleAddLayer = useCallback(() => {
     if (layers.length >= MAX_LAYERS) return;
-    const nextNum = layers.length + 1;
+    // Find the next available layer number (fills gaps after deletions)
+    const usedNumbers = layers.map((l) => {
+      const match = l.name.match(/^Layer (\d+)$/);
+      return match ? parseInt(match[1], 10) : 0;
+    });
+    let nextNum = 1;
+    while (usedNumbers.includes(nextNum)) nextNum++;
     const newId = `layer-${Date.now()}`;
     const newLayer: BuilderLayer = { id: newId, name: `Layer ${nextNum}`, slots: [] };
     setLayers((prev) => [...prev, newLayer]);
     setActiveLayerId(newId);
     setSelectedId(null);
     setDrawMode(false);
-  }, [layers.length]);
+  }, [layers]);
 
   const handleRemoveLayer = useCallback((layerId: string) => {
     if (layers.length <= 1) return;
