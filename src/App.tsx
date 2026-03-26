@@ -1066,6 +1066,11 @@ const App: React.FC = () => {
                 onUpdateImageFilters={updateImageFilters}
               />
               {/* Layer Panel: desktop sidebar / mobile pill */}
+              {isCustomMode && (
+                <div style={{ padding: '12px', background: '#6c5ce7', color: 'white', borderRadius: '8px', fontSize: '14px', fontWeight: 600 }}>
+                  Layers: {state.layers.length} | Active: {state.activeLayerId ?? 'none'}
+                </div>
+              )}
               {isCustomMode && state.layers.length > 0 && (
                 <LayerPanel
                   layers={state.layers}
