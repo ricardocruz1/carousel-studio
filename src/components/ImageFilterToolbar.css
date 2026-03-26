@@ -1,6 +1,6 @@
 .image-filter-toolbar {
-  background: var(--bg-surface, #fff);
-  border: 1px solid var(--border, #e0e0e0);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
   display: flex;
@@ -23,7 +23,7 @@
 .image-filter-toolbar__title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text, #1a1a2e);
+  color: var(--text-primary);
 }
 
 .image-filter-toolbar__header-actions {
@@ -35,7 +35,7 @@
 .image-filter-toolbar__reset-btn {
   background: none;
   border: none;
-  color: var(--accent, #6c5ce7);
+  color: var(--accent);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -44,13 +44,13 @@
 }
 
 .image-filter-toolbar__reset-btn:hover {
-  background: var(--bg-hover, rgba(108, 92, 231, 0.1));
+  background: var(--accent-light);
 }
 
 .image-filter-toolbar__close-btn {
   background: none;
   border: none;
-  color: var(--text-muted, #888);
+  color: var(--text-tertiary);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -60,8 +60,8 @@
 }
 
 .image-filter-toolbar__close-btn:hover {
-  background: var(--bg-hover, rgba(0, 0, 0, 0.06));
-  color: var(--text, #1a1a2e);
+  background: var(--accent-light);
+  color: var(--text-primary);
 }
 
 /* ─── Presets ──────────────────────────────────── */
@@ -73,25 +73,25 @@
 }
 
 .image-filter-toolbar__preset {
-  background: var(--bg-btn, #f0f0f5);
+  background: var(--slot-bg);
   border: 1.5px solid transparent;
   border-radius: 6px;
   padding: 5px 10px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--text, #1a1a2e);
+  color: var(--text-primary);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
 
 .image-filter-toolbar__preset:hover {
-  background: var(--bg-btn-hover, #e4e4ea);
+  background: var(--border);
 }
 
 .image-filter-toolbar__preset--active {
-  border-color: var(--accent, #6c5ce7);
-  background: var(--accent-light, rgba(108, 92, 231, 0.1));
-  color: var(--accent, #6c5ce7);
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
 }
 
 /* ─── Sliders ─────────────────────────────────── */
@@ -113,12 +113,12 @@
   justify-content: space-between;
   font-size: 11px;
   font-weight: 500;
-  color: var(--text-muted, #888);
+  color: var(--text-tertiary);
 }
 
 .image-filter-toolbar__slider-value {
   font-variant-numeric: tabular-nums;
-  color: var(--text, #1a1a2e);
+  color: var(--text-primary);
 }
 
 .image-filter-toolbar__slider {
@@ -131,10 +131,10 @@
   cursor: pointer;
   background: linear-gradient(
     to right,
-    var(--accent, #6c5ce7) 0%,
-    var(--accent, #6c5ce7) var(--slider-progress, 50%),
-    var(--bg-btn, #e0e0e0) var(--slider-progress, 50%),
-    var(--bg-btn, #e0e0e0) 100%
+    var(--accent) 0%,
+    var(--accent) var(--slider-progress, 50%),
+    var(--border) var(--slider-progress, 50%),
+    var(--border) 100%
   );
 }
 
@@ -143,8 +143,8 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--accent, #6c5ce7);
-  border: 2px solid #fff;
+  background: var(--accent);
+  border: 2px solid var(--surface);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   cursor: pointer;
 }
@@ -153,37 +153,16 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--accent, #6c5ce7);
-  border: 2px solid #fff;
+  background: var(--accent);
+  border: 2px solid var(--surface);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   cursor: pointer;
 }
 
 /* ─── Dark mode ───────────────────────────────── */
 
-:root.dark .image-filter-toolbar {
-  background: var(--bg-surface, #2a2a3e);
-  border-color: var(--border, #3a3a4e);
+html.dark .image-filter-toolbar {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-:root.dark .image-filter-toolbar__preset {
-  background: var(--bg-btn, #3a3a4e);
-  color: var(--text, #e0e0e0);
-}
-
-:root.dark .image-filter-toolbar__preset:hover {
-  background: var(--bg-btn-hover, #4a4a5e);
-}
-
-:root.dark .image-filter-toolbar__slider {
-  background: linear-gradient(
-    to right,
-    var(--accent, #6c5ce7) 0%,
-    var(--accent, #6c5ce7) var(--slider-progress, 50%),
-    var(--bg-btn, #3a3a4e) var(--slider-progress, 50%),
-    var(--bg-btn, #3a3a4e) 100%
-  );
 }
 
 /* ─── Mobile: full-width, no max-width ────────── */

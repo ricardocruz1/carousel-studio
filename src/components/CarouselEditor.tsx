@@ -121,6 +121,9 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
   // Toolbar position — computed from the selected overlay element's bounding rect
   const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number; below: boolean } | null>(null);
 
+  // Filter toolbar position — computed from the filter button's bounding rect (desktop only)
+  const [filterToolbarPos, setFilterToolbarPos] = useState<{ top: number; left: number; below: boolean } | null>(null);
+
   // Deselect when changing slides
   useEffect(() => {
     setSelectedOverlayId(null);
@@ -218,6 +221,43 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
       window.removeEventListener('resize', updatePos);
     };
   }, [selectedOverlayId, textOverlays, shapeOverlays]);
+
+  // Keep filter toolbar position in sync with the filter button (desktop only)
+  useLayoutEffect(() => {
+    if (!selectedFilterSlotId || isMobile) {
+      setFilterToolbarPos(null);
+      return;
+    }
+
+    const updatePos = () => {
+      const btn = document.querySelector(`[data-filter-slot="${selectedFilterSlotId}"]`) as HTMLElement | null;
+      if (!btn) {
+        setFilterToolbarPos(null);
+        return;
+      }
+      const rect = btn.getBoundingClientRect();
+      const spaceAbove = rect.top;
+      // The filter toolbar is ~300px tall — prefer above, but go below if not enough room
+      const below = spaceAbove < 320;
+      const vw = window.innerWidth;
+      const rawLeft = rect.left + rect.width / 2;
+      const clampedLeft = Math.max(170, Math.min(vw - 170, rawLeft));
+      setFilterToolbarPos({
+        top: below ? rect.bottom + 8 : rect.top - 8,
+        left: clampedLeft,
+        below,
+      });
+    };
+
+    updatePos();
+
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [selectedFilterSlotId, isMobile, images]);
 
   return (
     <div className="carousel-editor">
@@ -407,15 +447,27 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
         document.body,
       )}
 
-      {/* Image filter toolbar — shown below viewport on desktop */}
-      {!isMobile && selectedFilterImage && selectedFilterSlotId && (
-        <div className="carousel-editor__filter-toolbar" onPointerDown={(e) => e.stopPropagation()}>
+      {/* Image filter toolbar — floating portal (desktop only) */}
+      {!isMobile && selectedFilterImage && selectedFilterSlotId && filterToolbarPos && createPortal(
+        <div
+          className="text-toolbar-portal"
+          style={{
+            position: 'fixed',
+            top: `${filterToolbarPos.top}px`,
+            left: `${filterToolbarPos.left}px`,
+            transform: filterToolbarPos.below ? 'translateX(-50%)' : 'translate(-50%, -100%)',
+            zIndex: 10000,
+            maxWidth: 'calc(100vw - 16px)',
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <ImageFilterToolbar
             filters={selectedFilterImage.filters}
             onUpdate={(filters) => handleFilterUpdate(selectedFilterSlotId, filters)}
             onClose={handleFilterClose}
           />
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Slide navigation */}
@@ -795,6 +847,7 @@ const ImageSlot: React.FC<ImageSlotProps> = ({
               onClick={handleFilterBtn}
               aria-label="Image filters"
               title="Filters"
+              data-filter-slot={slotId}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <circle cx="4" cy="5" r="1.5" stroke="currentColor" strokeWidth="1.3"/>

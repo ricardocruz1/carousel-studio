@@ -224,14 +224,6 @@
   opacity: 1;
 }
 
-/* ─── Filter Toolbar (Desktop) ─────────────────────────── */
-
-.carousel-editor__filter-toolbar {
-  display: flex;
-  justify-content: center;
-  padding: 8px 0;
-}
-
 /* ─── Navigation ─────────────────────────────────────────── */
 
 .carousel-editor__nav {

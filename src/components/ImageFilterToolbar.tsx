@@ -26,12 +26,9 @@ const SLIDERS: { key: keyof ImageFilters; label: string; min: number; max: numbe
 
 export const ImageFilterToolbar: React.FC<ImageFilterToolbarProps> = ({ filters, onUpdate, onClose }) => {
   const handlePreset = useCallback((preset: FilterPreset) => {
-    if (preset === 'none') {
-      // Reset everything to defaults
-      onUpdate({ ...DEFAULT_IMAGE_FILTERS });
-    } else {
-      onUpdate({ preset });
-    }
+    // Only update the preset field — sliders stay as-is.
+    // Full reset is handled by the "Reset" button.
+    onUpdate({ preset });
   }, [onUpdate]);
 
   const handleSlider = useCallback((key: keyof ImageFilters, value: number) => {
@@ -111,6 +108,8 @@ export const ImageFilterToolbar: React.FC<ImageFilterToolbarProps> = ({ filters,
                 step={s.step}
                 value={value}
                 onChange={(e) => handleSlider(s.key, parseFloat(e.target.value))}
+                onDoubleClick={() => handleSlider(s.key, defaultVal)}
+                title={`Double-click to reset (default: ${defaultVal}${s.unit})`}
                 style={{
                   // Highlight the track fill to show deviation from default
                   '--slider-progress': `${((value - s.min) / (s.max - s.min)) * 100}%`,
