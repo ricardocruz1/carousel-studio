@@ -1,0 +1,356 @@
+/* ─── Manual Page ─────────────────────────────────────────── */
+
+.manual {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+/* ─── Sidebar ────────────────────────────────────────────── */
+
+.manual__sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 280px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.manual__sidebar-header {
+  padding: 24px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.manual__sidebar-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 16px;
+}
+
+.manual__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+@media (hover: hover) {
+  .manual__back:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+.manual__back:active {
+  opacity: 0.7;
+  transform: scale(0.97);
+}
+
+/* Hide mobile back button on desktop */
+.manual__back--mobile {
+  display: none;
+}
+
+/* ─── Navigation ─────────────────────────────────────────── */
+
+.manual__nav {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 8px;
+  gap: 2px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.manual__nav-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+
+@media (hover: hover) {
+  .manual__nav-item:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+  }
+}
+
+.manual__nav-item:active {
+  opacity: 0.7;
+}
+
+.manual__nav-item--active {
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* ─── Content Area ───────────────────────────────────────── */
+
+.manual__content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.manual__content-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 48px 80px;
+}
+
+.manual__title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+
+.manual__intro {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 40px;
+}
+
+/* ─── Chapter Sections ───────────────────────────────────── */
+
+.manual__chapter {
+  margin-bottom: 48px;
+  scroll-margin-top: 24px;
+}
+
+.manual__chapter-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--accent-light);
+}
+
+.manual__chapter h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 20px 0 8px;
+}
+
+.manual__chapter p {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin: 0 0 10px;
+}
+
+.manual__chapter ul,
+.manual__chapter ol {
+  margin: 8px 0 12px;
+  padding-left: 20px;
+}
+
+.manual__chapter li {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: 4px;
+}
+
+.manual__chapter code {
+  font-size: 0.84rem;
+  font-family: 'Courier New', Courier, monospace;
+  background: var(--accent-light);
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.manual__chapter strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ─── Tables ─────────────────────────────────────────────── */
+
+.manual__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 16px;
+  font-size: 0.84rem;
+}
+
+.manual__table th {
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid var(--border);
+}
+
+.manual__table td {
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.manual__table tr:last-child td {
+  border-bottom: none;
+}
+
+@media (hover: hover) {
+  .manual__table tbody tr:hover td {
+    background: var(--accent-light);
+  }
+}
+
+/* ─── Sidebar Toggle (mobile only) ───────────────────────── */
+
+.manual__sidebar-toggle {
+  display: none;
+}
+
+.manual__sidebar-backdrop {
+  display: none;
+}
+
+/* ─── Responsive ─────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .manual {
+    flex-direction: column;
+  }
+
+  /* Hide sidebar by default on mobile, slide in when open */
+  .manual__sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 280px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 1001;
+    box-shadow: none;
+  }
+
+  .manual__sidebar--open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  }
+
+  .manual__sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    animation: manualBackdropFadeIn 0.2s ease;
+  }
+
+  @keyframes manualBackdropFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .manual__sidebar-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    width: 100%;
+    padding: 12px 20px;
+    background: var(--surface);
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .manual__sidebar-toggle:active {
+    opacity: 0.7;
+  }
+
+  .manual__sidebar-toggle--open {
+    color: var(--accent);
+  }
+
+  /* Show mobile back button, hide sidebar one */
+  .manual__back--mobile {
+    display: inline-flex;
+    margin-bottom: 20px;
+  }
+
+  .manual__sidebar-header .manual__back {
+    /* Still visible in sidebar on mobile */
+  }
+
+  .manual__content-inner {
+    padding: 24px 20px 60px;
+  }
+
+  .manual__title {
+    font-size: 1.4rem;
+  }
+
+  .manual__chapter-title {
+    font-size: 1.1rem;
+  }
+
+  /* Make tables scroll horizontally on small screens */
+  .manual__table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 480px) {
+  .manual__content-inner {
+    padding: 16px 16px 60px;
+  }
+
+  .manual__table th,
+  .manual__table td {
+    padding: 6px 8px;
+    font-size: 0.78rem;
+  }
+}

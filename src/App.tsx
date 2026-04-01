@@ -11,6 +11,8 @@ const ADS_ENABLED = false;
 import { BackgroundPicker } from './components/BackgroundPicker';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { TermsOfService } from './components/TermsOfService';
+import { Manual } from './components/Manual';
+import { HelpButton } from './components/HelpButton';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { ToastContainer } from './components/Toast';
 import { Onboarding, isOnboardingDone } from './components/Onboarding';
@@ -644,9 +646,10 @@ const App: React.FC = () => {
     [restoreState, showToast]
   );
 
-  // ─── Route to legal pages ──────────────────────────────
+  // ─── Route to legal / manual pages ─────────────────────
   if (page === '#/privacy') return <PrivacyPolicy onBack={goHome} />;
   if (page === '#/terms') return <TermsOfService onBack={goHome} />;
+  if (page === '#/manual') return <Manual onBack={goHome} />;
 
   // ─── Builder View ───────────────────────────────────────
   if (isBuilding) {
@@ -1115,6 +1118,8 @@ const App: React.FC = () => {
           <a href="#/privacy" onClick={() => navigateTo('#/privacy')}>Privacy Policy</a>
           <span className="app__footer-sep">|</span>
           <a href="#/terms" onClick={() => navigateTo('#/terms')}>Terms of Service</a>
+          <span className="app__footer-sep">|</span>
+          <a href="#/manual" onClick={() => navigateTo('#/manual')}>Manual</a>
         </nav>
       </footer>
 
@@ -1125,6 +1130,9 @@ const App: React.FC = () => {
 
       {/* -- Toast Notifications ─────────────────────── */}
       <ToastContainer />
+
+      {/* -- Floating Help Button ─────────────────────── */}
+      <HelpButton />
     </div>
   );
 };
